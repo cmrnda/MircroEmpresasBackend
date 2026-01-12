@@ -4,6 +4,7 @@ from .config import Config
 
 def create_app() -> Flask:
     app = Flask(__name__)
+
     app.config["SQLALCHEMY_DATABASE_URI"] = Config.db_uri()
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = Config.jwt_secret()
@@ -14,6 +15,13 @@ def create_app() -> Flask:
     cors.init_app(app)
 
     from .db import models
+
+    from .modules.users import users_bp
+    app.register_blueprint(users_bp)
+
+    @app.get("/")
+    def root():
+        return {"message": "ok"}
 
     @app.get("/health")
     def health():
