@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+venv/
+migrations/
+.pgdata/
+dist/
+build/
+node_modules/
