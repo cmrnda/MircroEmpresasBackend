@@ -1,7 +1,7 @@
-from passlib.hash import bcrypt
+from werkzeug.security import generate_password_hash, check_password_hash
 
 def hash_password(raw_password: str) -> str:
-    return bcrypt.hash(raw_password)
+    return generate_password_hash(raw_password, method="pbkdf2:sha256", salt_length=16)
 
-def verify_password(raw_password: str, password_hash: str) -> bool:
-    return bcrypt.verify(raw_password, password_hash)
+def verify_password(raw_password: str, hashed_password: str) -> bool:
+    return check_password_hash(hashed_password, raw_password)
