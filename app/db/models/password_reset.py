@@ -8,5 +8,5 @@ class PasswordReset(db.Model):
     usuario_id = db.Column(db.BigInteger, db.ForeignKey("usuario.usuario_id", ondelete="CASCADE"), nullable=False)
     token_hash = db.Column(db.Text, nullable=False)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
-    used_at = db.Column(db.DateTime(timezone=True))
+    used_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)

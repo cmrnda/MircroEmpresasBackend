@@ -1,82 +1,42 @@
-from sqlalchemy import text
 from app.extensions import db
 from app.db.models.cliente import Cliente
+from werkzeug.security import generate_password_hash
 
-class ClientsRepository:
-    def list_clients(self, empresa_id: int):
-        rows = db.session.execute(
-            text("""
-                 select cliente_id, nombre_razon, nit_ci, telefono, email, activo, es_generico
-                 from cliente
-                 where empresa_id = :e
-                 order by cliente_id asc
-                 """),
-            {"e": int(empresa_id)}
-        ).mappings().all()
-        return [dict(r) for r in rows]
+def list_clients(empresa_id):
+    return Cliente.query.filter_by(empresa_id=empresa_id).order_by(Cliente.cliente_id.desc()).all()
 
-    def create_client(self, empresa_id: int, nombre_razon: str, nit_ci: str, telefono: str, email: str, es_generico: bool):
-        c = Cliente(
-            empresa_id=empresa_id,
-            usuario_id=None,
-            nombre_razon=nombre_razon,
-            nit_ci=nit_ci,
-            telefono=telefono,
-            email=email,
-            activo=True,
-            es_generico=es_generico
-        )
-        db.session.add(c)
-        db.session.commit()
-        return {"cliente_id": int(c.cliente_id), "empresa_id": int(c.empresa_id)}
+def get_client(empresa_id, cliente_id):
+    return Cliente.query.filter_by(empresa_id=empresa_id, cliente_id=cliente_id).first()
 
-    def update_client(self, empresa_id: int, cliente_id: int, data) -> bool:
-        c = db.session.query(Cliente).filter_by(empresa_id=empresa_id, cliente_id=cliente_id).first()
-        if not c:
-            return False
-        if "nombre_razon" in data and data.get("nombre_razon"):
-            c.nombre_razon = data.get("nombre_razon")
-        if "nit_ci" in data:
-            c.nit_ci = data.get("nit_ci")
-        if "telefono" in data:
-            c.telefono = data.get("telefono")
-        if "email" in data:
-            c.email = data.get("email")
-        db.session.commit()
-        return True
+def create_client(empresa_id, payload):
+    c = Cliente(
+        empresa_id=empresa_id,
+        email=payload.get("email"),
+        password_hash=generate_password_hash(payload.get("password")),
+        nombre_razon=payload.get("nombre_razon"),
+        nit_ci=payload.get("nit_ci"),
+        telefono=payload.get("telefono"),
+    )
+    db.session.add(c)
+    db.session.commit()
+    return c
 
-    def set_client_active(self, empresa_id: int, cliente_id: int, activo: bool) -> bool:
-        c = db.session.query(Cliente).filter_by(empresa_id=empresa_id, cliente_id=cliente_id).first()
-        if not c:
-            return False
-        c.activo = activo
-        db.session.commit()
-        return True
+def update_client(c, payload):
+    if payload.get("email") is not None:
+        c.email = payload.get("email")
+    if payload.get("nombre_razon") is not None:
+        c.nombre_razon = payload.get("nombre_razon")
+    if payload.get("nit_ci") is not None:
+        c.nit_ci = payload.get("nit_ci")
+    if payload.get("telefono") is not None:
+        c.telefono = payload.get("telefono")
+    if payload.get("activo") is not None:
+        c.activo = bool(payload.get("activo"))
+    if payload.get("password"):
+        c.password_hash = generate_password_hash(payload.get("password"))
+    db.session.commit()
+    return c
 
-    def get_client_by_user(self, empresa_id: int, usuario_id: int):
-        c = db.session.query(Cliente).filter_by(empresa_id=empresa_id, usuario_id=usuario_id, activo=True).first()
-        if not c:
-            return None
-        return {
-            "cliente_id": int(c.cliente_id),
-            "empresa_id": int(c.empresa_id),
-            "nombre_razon": c.nombre_razon,
-            "nit_ci": c.nit_ci,
-            "telefono": c.telefono,
-            "email": c.email,
-            "activo": bool(c.activo),
-            "es_generico": bool(c.es_generico)
-        }
-
-    def update_client_by_user(self, empresa_id: int, usuario_id: int, data) -> bool:
-        c = db.session.query(Cliente).filter_by(empresa_id=empresa_id, usuario_id=usuario_id, activo=True).first()
-        if not c:
-            return False
-        if "nombre_razon" in data and data.get("nombre_razon"):
-            c.nombre_razon = data.get("nombre_razon")
-        if "nit_ci" in data:
-            c.nit_ci = data.get("nit_ci")
-        if "telefono" in data:
-            c.telefono = data.get("telefono")
-        db.session.commit()
-        return True
+def delete_client(c):
+    db.session.delete(c)
+    db.session.commit()

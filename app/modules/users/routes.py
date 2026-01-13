@@ -1,52 +1,51 @@
-from flask import Blueprint, request, g
-from app.common.authz import require_scope, require_empresa_id, require_role
-from app.modules.users.service import UsersService
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required
 
-users_bp = Blueprint("users", __name__)
-_service = UsersService()
+from app.common.authz import require_tenant_admin
+from app.common.tenant_context import current_empresa_id
+from app.modules.users.service import tenant_list_users, tenant_create_user, tenant_update_user, tenant_delete_user
 
-@users_bp.get("/tenant/users")
-@require_scope("TENANT")
-@require_empresa_id
-@require_role("ADMIN_EMPRESA")
+bp = Blueprint("users", __name__, url_prefix="/tenant/users")
+
+
+@bp.get("")
+@jwt_required()
+@require_tenant_admin
 def list_users():
-    return _service.list_users(int(g.empresa_id))
+    empresa_id = current_empresa_id()
+    return jsonify(tenant_list_users(empresa_id)), 200
 
-@users_bp.post("/tenant/users")
-@require_scope("TENANT")
-@require_empresa_id
-@require_role("ADMIN_EMPRESA")
+
+@bp.post("")
+@jwt_required()
+@require_tenant_admin
 def create_user():
-    data = request.get_json() or {}
-    return _service.create_user(int(g.empresa_id), data)
+    empresa_id = current_empresa_id()
+    data = request.get_json(silent=True) or {}
+    res, err = tenant_create_user(empresa_id, data)
+    if err:
+        return jsonify({"error": err}), 400
+    return jsonify(res), 201
 
-@users_bp.get("/tenant/users/<int:usuario_id>")
-@require_scope("TENANT")
-@require_empresa_id
-@require_role("ADMIN_EMPRESA")
-def get_user(usuario_id: int):
-    return _service.get_user(int(g.empresa_id), usuario_id)
 
-@users_bp.put("/tenant/users/<int:usuario_id>/roles")
-@require_scope("TENANT")
-@require_empresa_id
-@require_role("ADMIN_EMPRESA")
-def set_roles(usuario_id: int):
-    data = request.get_json() or {}
-    return _service.set_roles(int(g.empresa_id), usuario_id, data)
+@bp.put("/<int:usuario_id>")
+@jwt_required()
+@require_tenant_admin
+def update_user(usuario_id):
+    empresa_id = current_empresa_id()
+    data = request.get_json(silent=True) or {}
+    res = tenant_update_user(empresa_id, usuario_id, data)
+    if not res:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(res), 200
 
-@users_bp.patch("/tenant/users/<int:usuario_id>/status")
-@require_scope("TENANT")
-@require_empresa_id
-@require_role("ADMIN_EMPRESA")
-def set_status(usuario_id: int):
-    data = request.get_json() or {}
-    return _service.set_status(int(g.empresa_id), usuario_id, data)
 
-@users_bp.put("/tenant/users/<int:usuario_id>/password")
-@require_scope("TENANT")
-@require_empresa_id
-@require_role("ADMIN_EMPRESA")
-def set_password(usuario_id: int):
-    data = request.get_json() or {}
-    return _service.set_password(usuario_id, data)
+@bp.delete("/<int:usuario_id>")
+@jwt_required()
+@require_tenant_admin
+def delete_user(usuario_id):
+    empresa_id = current_empresa_id()
+    ok = tenant_delete_user(empresa_id, usuario_id)
+    if not ok:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"ok": True}), 200

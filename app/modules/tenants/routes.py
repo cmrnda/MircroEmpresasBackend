@@ -1,59 +1,50 @@
-from flask import Blueprint, request
-from app.common.authz import require_scope, require_role
-from app.modules.tenants.service import TenantsService
+from flask import Blueprint, request, jsonify
+from app.common.authz import require_platform_admin
+from app.modules.tenants.service import (
+    platform_list_tenants,
+    platform_create_tenant,
+    platform_update_tenant,
+    platform_delete_tenant,
+    platform_get_tenant,
+)
 
-tenants_bp = Blueprint("tenants", __name__)
-_service = TenantsService()
+bp = Blueprint("tenants", __name__, url_prefix="/platform/tenants")
 
-@tenants_bp.post("/platform/tenants")
-@require_scope("PLATFORM")
-@require_role("ADMIN_PLATAFORMA")
-def create_tenant():
-    data = request.get_json() or {}
-    return _service.create_tenant_with_admin(data)
-
-@tenants_bp.get("/platform/tenants")
-@require_scope("PLATFORM")
-@require_role("ADMIN_PLATAFORMA")
+@bp.get("")
+@require_platform_admin
 def list_tenants():
-    return _service.list_tenants()
+    return jsonify(platform_list_tenants()), 200
 
-@tenants_bp.get("/platform/tenants/<int:empresa_id>")
-@require_scope("PLATFORM")
-@require_role("ADMIN_PLATAFORMA")
-def get_tenant(empresa_id: int):
-    return _service.get_tenant(empresa_id)
+@bp.post("")
+@require_platform_admin
+def create_tenant():
+    data = request.get_json(silent=True) or {}
+    res, err = platform_create_tenant(data)
+    if err:
+        return jsonify({"error": err}), 400
+    return jsonify(res), 201
 
-@tenants_bp.patch("/platform/tenants/<int:empresa_id>/status")
-@require_scope("PLATFORM")
-@require_role("ADMIN_PLATAFORMA")
-def set_tenant_status(empresa_id: int):
-    data = request.get_json() or {}
-    return _service.set_tenant_status(empresa_id, data)
+@bp.get("/<int:empresa_id>")
+@require_platform_admin
+def get_tenant(empresa_id):
+    e = platform_get_tenant(empresa_id)
+    if not e:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(e), 200
 
-@tenants_bp.get("/platform/plans")
-@require_scope("PLATFORM")
-@require_role("ADMIN_PLATAFORMA")
-def list_plans():
-    return _service.list_plans()
+@bp.put("/<int:empresa_id>")
+@require_platform_admin
+def update_tenant(empresa_id):
+    data = request.get_json(silent=True) or {}
+    e = platform_update_tenant(empresa_id, data)
+    if not e:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(e), 200
 
-@tenants_bp.post("/platform/plans")
-@require_scope("PLATFORM")
-@require_role("ADMIN_PLATAFORMA")
-def create_plan():
-    data = request.get_json() or {}
-    return _service.create_plan(data)
-
-@tenants_bp.post("/platform/tenants/<int:empresa_id>/subscriptions")
-@require_scope("PLATFORM")
-@require_role("ADMIN_PLATAFORMA")
-def create_subscription(empresa_id: int):
-    data = request.get_json() or {}
-    return _service.create_subscription(empresa_id, data)
-
-@tenants_bp.post("/platform/tenants/<int:empresa_id>/subscription-payments")
-@require_scope("PLATFORM")
-@require_role("ADMIN_PLATAFORMA")
-def create_subscription_payment(empresa_id: int):
-    data = request.get_json() or {}
-    return _service.create_subscription_payment(empresa_id, data)
+@bp.delete("/<int:empresa_id>")
+@require_platform_admin
+def delete_tenant(empresa_id):
+    ok = platform_delete_tenant(empresa_id)
+    if not ok:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"ok": True}), 200

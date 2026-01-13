@@ -1,45 +1,41 @@
 from functools import wraps
+from flask import jsonify
+from flask_jwt_extended import verify_jwt_in_request, get_jwt
 
-from flask import g, jsonify
-from flask_jwt_extended import verify_jwt_in_request
-
-
-def require_scope(scope: str):
-    def decorator(fn):
+def require_types(*allowed_types):
+    def deco(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
             verify_jwt_in_request()
-            if getattr(g, "scope", None) != scope:
-                return jsonify({"error": "forbidden_scope"}), 403
+            claims = get_jwt()
+            t = claims.get("type")
+            if t not in allowed_types:
+                return jsonify({"error": "forbidden"}), 403
             return fn(*args, **kwargs)
-
         return wrapper
+    return deco
 
-    return decorator
-
-
-def require_empresa_id(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        verify_jwt_in_request()
-        empresa_id = getattr(g, "empresa_id", None)
-        if empresa_id is None:
-            return jsonify({"error": "empresa_required"}), 400
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-
-def require_role(role: str):
-    def decorator(fn):
+def require_roles(*required_roles):
+    def deco(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
             verify_jwt_in_request()
-            roles = getattr(g, "roles", []) or []
-            if role not in roles:
-                return jsonify({"error": "forbidden_role"}), 403
+            claims = get_jwt()
+            roles = claims.get("roles") or []
+            if not set(required_roles).intersection(set(roles)):
+                return jsonify({"error": "forbidden"}), 403
             return fn(*args, **kwargs)
-
         return wrapper
+    return deco
 
-    return decorator
+def require_platform_admin(fn):
+    return require_types("platform")(require_roles("PLATFORM_ADMIN")(fn))
+
+def require_tenant_admin(fn):
+    return require_types("user")(require_roles("TENANT_ADMIN")(fn))
+
+def require_tenant_user(fn):
+    return require_types("user")(fn)
+
+def require_client(fn):
+    return require_types("client")(fn)

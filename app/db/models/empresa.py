@@ -1,4 +1,3 @@
-from datetime import datetime
 from app.extensions import db
 
 class Empresa(db.Model):
@@ -6,15 +5,15 @@ class Empresa(db.Model):
 
     empresa_id = db.Column(db.BigInteger, primary_key=True)
     nombre = db.Column(db.Text, nullable=False)
-    nit = db.Column(db.Text)
-    estado = db.Column(db.Text, nullable=False, default="ACTIVA")
-    creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    nit = db.Column(db.Text, nullable=True)
+    estado = db.Column(db.Text, nullable=False, server_default="ACTIVA")
+    creado_en = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
 
-class EmpresaConfig(db.Model):
-    __tablename__ = "empresa_config"
-
-    empresa_id = db.Column(db.BigInteger, db.ForeignKey("empresa.empresa_id", ondelete="CASCADE"), primary_key=True)
-    moneda = db.Column(db.Text, nullable=False, default="BOB")
-    tasa_impuesto = db.Column(db.Numeric(6, 3), nullable=False, default=0)
-    logo_url = db.Column(db.Text)
-    actualizado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    def to_dict(self):
+        return {
+            "empresa_id": self.empresa_id,
+            "nombre": self.nombre,
+            "nit": self.nit,
+            "estado": self.estado,
+            "creado_en": self.creado_en.isoformat() if self.creado_en else None,
+        }

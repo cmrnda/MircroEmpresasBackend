@@ -1,63 +1,65 @@
-from flask import jsonify
-from app.modules.users.repository import UsersRepository
-from app.security.password import hash_password
+from app.modules.users.repository import (
+    list_users,
+    get_user,
+    create_user_global,
+    attach_user_to_tenant,
+    set_roles,
+    user_roles,
+    update_user,
+    detach_user,
+)
+from app.extensions import db
+from sqlalchemy.exc import IntegrityError
+from app.db.models.usuario import Usuario
 
-class UsersService:
-    def __init__(self):
-        self._repo = UsersRepository()
+def tenant_list_users(empresa_id):
+    rows = list_users(empresa_id)
+    out = []
+    for u, ue in rows:
+        out.append({
+            **u.to_dict(),
+            "tenant_activo": bool(ue.activo),
+            "empresa_id": ue.empresa_id,
+            "roles": user_roles(empresa_id, u.usuario_id),
+        })
+    return out
 
-    def list_users(self, empresa_id: int):
-        rows = self._repo.list_users(empresa_id)
-        return jsonify({"data": rows}), 200
+def tenant_create_user(empresa_id, payload):
+    email = payload.get("email")
+    password = payload.get("password")
+    roles = payload.get("roles") or []
+    if not email or not password:
+        return None, "invalid_payload"
 
-    def create_user(self, empresa_id: int, data):
-        email = data.get("email")
-        password = data.get("password")
-        roles = data.get("roles") or ["VENDEDOR"]
+    try:
+        u = Usuario.query.filter_by(email=email).first()
+        if not u:
+            u = create_user_global(email, password)
+        attach_user_to_tenant(empresa_id, u.usuario_id)
+        set_roles(empresa_id, u.usuario_id, roles)
+        db.session.commit()
+        return {"usuario": u.to_dict(), "roles": user_roles(empresa_id, u.usuario_id)}, None
+    except IntegrityError:
+        db.session.rollback()
+        return None, "conflict"
 
-        if not email or not password:
-            return jsonify({"error": "email_password_required"}), 400
+def tenant_update_user(empresa_id, usuario_id, payload):
+    u, ue = get_user(empresa_id, usuario_id)
+    if not u:
+        return None
+    if payload.get("roles") is not None:
+        set_roles(empresa_id, usuario_id, payload.get("roles"))
+    update_user(u, ue, payload)
+    return {
+        **u.to_dict(),
+        "tenant_activo": bool(ue.activo),
+        "empresa_id": empresa_id,
+        "roles": user_roles(empresa_id, usuario_id),
+    }
 
-        user = self._repo.get_user_by_email(email)
-        if not user:
-            pw_hash = hash_password(password)
-            user = self._repo.create_user(email, pw_hash)
-
-        self._repo.ensure_membership(empresa_id, user.usuario_id, True)
-        self._repo.set_roles(empresa_id, user.usuario_id, roles)
-
-        return jsonify({"ok": True, "usuario_id": int(user.usuario_id)}), 201
-
-    def get_user(self, empresa_id: int, usuario_id: int):
-        row = self._repo.get_user_detail(empresa_id, usuario_id)
-        if not row:
-            return jsonify({"error": "not_found"}), 404
-        return jsonify(row), 200
-
-    def set_roles(self, empresa_id: int, usuario_id: int, data):
-        roles = data.get("roles")
-        if not roles or not isinstance(roles, list):
-            return jsonify({"error": "roles_required"}), 400
-        if not self._repo.membership_exists(empresa_id, usuario_id):
-            return jsonify({"error": "user_not_in_empresa"}), 404
-        self._repo.set_roles(empresa_id, usuario_id, roles)
-        return jsonify({"ok": True}), 200
-
-    def set_status(self, empresa_id: int, usuario_id: int, data):
-        activo = data.get("activo")
-        if activo is None:
-            return jsonify({"error": "activo_required"}), 400
-        ok = self._repo.set_membership_active(empresa_id, usuario_id, bool(activo))
-        if not ok:
-            return jsonify({"error": "not_found"}), 404
-        return jsonify({"ok": True}), 200
-
-    def set_password(self, usuario_id: int, data):
-        new_password = data.get("new_password")
-        if not new_password:
-            return jsonify({"error": "new_password_required"}), 400
-        pw_hash = hash_password(new_password)
-        ok = self._repo.set_user_password(usuario_id, pw_hash)
-        if not ok:
-            return jsonify({"error": "not_found"}), 404
-        return jsonify({"ok": True}), 200
+def tenant_delete_user(empresa_id, usuario_id):
+    u, ue = get_user(empresa_id, usuario_id)
+    if not u:
+        return False
+    detach_user(empresa_id, usuario_id)
+    return True
