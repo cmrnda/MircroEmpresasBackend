@@ -1,7 +1,5 @@
 from datetime import datetime
-
-from ...extensions import db
-
+from app.extensions import db
 
 class Empresa(db.Model):
     __tablename__ = "empresa"
@@ -12,25 +10,11 @@ class Empresa(db.Model):
     estado = db.Column(db.Text, nullable=False, default="ACTIVA")
     creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
-    config = db.relationship(
-        "EmpresaConfig",
-        back_populates="empresa",
-        uselist=False,
-        cascade="all, delete-orphan",
-    )
-
-
 class EmpresaConfig(db.Model):
     __tablename__ = "empresa_config"
 
-    empresa_id = db.Column(
-        db.BigInteger,
-        db.ForeignKey("empresa.empresa_id", ondelete="CASCADE"),
-        primary_key=True,
-    )
+    empresa_id = db.Column(db.BigInteger, db.ForeignKey("empresa.empresa_id", ondelete="CASCADE"), primary_key=True)
     moneda = db.Column(db.Text, nullable=False, default="BOB")
     tasa_impuesto = db.Column(db.Numeric(6, 3), nullable=False, default=0)
     logo_url = db.Column(db.Text)
     actualizado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-
-    empresa = db.relationship("Empresa", back_populates="config")

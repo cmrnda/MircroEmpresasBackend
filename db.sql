@@ -1,215 +1,316 @@
-BEGIN;
-
--- =========================
--- DROP (por si estas probando)
--- =========================
-DROP TABLE IF EXISTS usuario_vendedor CASCADE;
-DROP TABLE IF EXISTS usuario_admin_empresa CASCADE;
-DROP TABLE IF EXISTS usuario_admin_plataforma CASCADE;
-DROP TABLE IF EXISTS usuario CASCADE;
-
-DROP TABLE IF EXISTS suscripcion_pago CASCADE;
-DROP TABLE IF EXISTS suscripcion CASCADE;
-DROP TABLE IF EXISTS plan CASCADE;
-
-DROP TABLE IF EXISTS empresa_config CASCADE;
-DROP TABLE IF EXISTS empresa CASCADE;
-
--- =========================
--- EMPRESA + CONFIG
--- =========================
-CREATE TABLE empresa
-(
-    empresa_id BIGSERIAL PRIMARY KEY,
-    nombre     TEXT        NOT NULL,
-    nit        TEXT,
-    estado     TEXT        NOT NULL DEFAULT 'ACTIVA',
-    creado_en  TIMESTAMPTZ NOT NULL DEFAULT now()
+create table empresa (
+                         empresa_id bigserial primary key,
+                         nombre text not null,
+                         nit text,
+                         estado text not null default 'ACTIVA',
+                         creado_en timestamptz not null default now()
 );
 
-CREATE TABLE empresa_config
-(
-    empresa_id     BIGINT PRIMARY KEY REFERENCES empresa (empresa_id) ON DELETE CASCADE,
-    moneda         TEXT          NOT NULL DEFAULT 'BOB',
-    tasa_impuesto  NUMERIC(6, 3) NOT NULL DEFAULT 0,
-    logo_url       TEXT,
-    actualizado_en TIMESTAMPTZ   NOT NULL DEFAULT now()
+create table empresa_config (
+                                empresa_id bigint primary key references empresa(empresa_id) on delete cascade,
+                                moneda text not null default 'BOB',
+                                tasa_impuesto numeric(6,3) not null default 0,
+                                logo_url text,
+                                actualizado_en timestamptz not null default now()
 );
 
--- =========================
--- PLAN + SUSCRIPCION + PAGO SUSCRIPCION
--- =========================
-CREATE TABLE plan
-(
-    plan_id       BIGSERIAL PRIMARY KEY,
-    nombre        TEXT           NOT NULL,
-    precio        NUMERIC(12, 2) NOT NULL DEFAULT 0,
-    periodo_cobro TEXT           NOT NULL
+create table plan (
+                      plan_id bigserial primary key,
+                      nombre text not null,
+                      precio numeric(12,2) not null default 0,
+                      periodo_cobro text not null
 );
 
-CREATE TABLE suscripcion
-(
-    suscripcion_id BIGSERIAL PRIMARY KEY,
-    empresa_id     BIGINT NOT NULL REFERENCES empresa (empresa_id) ON DELETE CASCADE,
-    plan_id        BIGINT NOT NULL REFERENCES plan (plan_id),
-    estado         TEXT   NOT NULL,
-    inicio         DATE   NOT NULL,
-    fin            DATE,
-    renovacion     DATE,
-    UNIQUE (empresa_id, suscripcion_id)
+create table suscripcion (
+                             suscripcion_id bigserial primary key,
+                             empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                             plan_id bigint not null references plan(plan_id),
+                             estado text not null,
+                             inicio date not null,
+                             fin date,
+                             renovacion date,
+                             unique (empresa_id, suscripcion_id)
 );
 
-CREATE TABLE suscripcion_pago
-(
-    pago_suscripcion_id BIGSERIAL PRIMARY KEY,
-    empresa_id          BIGINT         NOT NULL REFERENCES empresa (empresa_id) ON DELETE CASCADE,
-    suscripcion_id      BIGINT         NOT NULL,
-    monto               NUMERIC(12, 2) NOT NULL,
-    moneda              TEXT           NOT NULL DEFAULT 'BOB',
-    metodo              TEXT           NOT NULL,
-    referencia_qr       TEXT,
-    estado              TEXT           NOT NULL,
-    pagado_en           TIMESTAMPTZ,
-    UNIQUE (empresa_id, pago_suscripcion_id),
-    FOREIGN KEY (empresa_id, suscripcion_id)
-        REFERENCES suscripcion (empresa_id, suscripcion_id)
-        ON DELETE CASCADE
+create table suscripcion_pago (
+                                  pago_suscripcion_id bigserial primary key,
+                                  empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                                  suscripcion_id bigint not null,
+                                  monto numeric(12,2) not null,
+                                  moneda text not null default 'BOB',
+                                  metodo text not null,
+                                  referencia_qr text,
+                                  estado text not null,
+                                  pagado_en timestamptz,
+                                  unique (empresa_id, pago_suscripcion_id),
+                                  foreign key (empresa_id, suscripcion_id)
+                                      references suscripcion(empresa_id, suscripcion_id)
+                                      on delete cascade
 );
 
--- =========================
--- USUARIO + ROLES (especializacion)
--- =========================
-CREATE TABLE usuario
-(
-    usuario_id    BIGSERIAL PRIMARY KEY,
-    empresa_id    BIGINT      NOT NULL REFERENCES empresa (empresa_id) ON DELETE CASCADE,
-    email         TEXT        NOT NULL,
-    password_hash TEXT        NOT NULL,
-    activo        BOOLEAN     NOT NULL DEFAULT TRUE,
-    creado_en     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ultimo_login  TIMESTAMPTZ,
-    UNIQUE (empresa_id, email),
-    UNIQUE (empresa_id, usuario_id)
+create table usuario (
+                         usuario_id bigserial primary key,
+                         email text not null unique,
+                         password_hash text not null,
+                         activo boolean not null default true,
+                         creado_en timestamptz not null default now(),
+                         ultimo_login timestamptz
 );
 
-CREATE TABLE usuario_admin_plataforma
-(
-    empresa_id BIGINT NOT NULL REFERENCES empresa (empresa_id) ON DELETE CASCADE,
-    usuario_id BIGINT NOT NULL,
-    PRIMARY KEY (empresa_id, usuario_id),
-    FOREIGN KEY (empresa_id, usuario_id)
-        REFERENCES usuario (empresa_id, usuario_id)
-        ON DELETE CASCADE
+create table usuario_admin_plataforma (
+                                          usuario_id bigint primary key references usuario(usuario_id) on delete cascade
 );
 
-CREATE TABLE usuario_admin_empresa
-(
-    empresa_id BIGINT NOT NULL REFERENCES empresa (empresa_id) ON DELETE CASCADE,
-    usuario_id BIGINT NOT NULL,
-    PRIMARY KEY (empresa_id, usuario_id),
-    FOREIGN KEY (empresa_id, usuario_id)
-        REFERENCES usuario (empresa_id, usuario_id)
-        ON DELETE CASCADE
+create table empresa_usuario (
+                                 empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                                 usuario_id bigint not null references usuario(usuario_id) on delete cascade,
+                                 activo boolean not null default true,
+                                 creado_en timestamptz not null default now(),
+                                 primary key (empresa_id, usuario_id)
 );
 
-CREATE TABLE usuario_vendedor
-(
-    empresa_id BIGINT NOT NULL REFERENCES empresa (empresa_id) ON DELETE CASCADE,
-    usuario_id BIGINT NOT NULL,
-    PRIMARY KEY (empresa_id, usuario_id),
-    FOREIGN KEY (empresa_id, usuario_id)
-        REFERENCES usuario (empresa_id, usuario_id)
-        ON DELETE CASCADE
+create table usuario_admin_empresa (
+                                       empresa_id bigint not null,
+                                       usuario_id bigint not null,
+                                       primary key (empresa_id, usuario_id),
+                                       foreign key (empresa_id, usuario_id)
+                                           references empresa_usuario(empresa_id, usuario_id)
+                                           on delete cascade
 );
 
-COMMIT;
+create table usuario_vendedor (
+                                  empresa_id bigint not null,
+                                  usuario_id bigint not null,
+                                  primary key (empresa_id, usuario_id),
+                                  foreign key (empresa_id, usuario_id)
+                                      references empresa_usuario(empresa_id, usuario_id)
+                                      on delete cascade
+);
 
--- =========================
--- DATOS DE PRUEBA (MVP)
--- =========================
--- Asume que ya existen las tablas:
--- empresa, empresa_config, usuario, usuario_admin_plataforma, usuario_admin_empresa, usuario_vendedor
+create table usuario_encargado_inventario (
+                                              empresa_id bigint not null,
+                                              usuario_id bigint not null,
+                                              primary key (empresa_id, usuario_id),
+                                              foreign key (empresa_id, usuario_id)
+                                                  references empresa_usuario(empresa_id, usuario_id)
+                                                  on delete cascade
+);
 
-BEGIN;
+create table categoria (
+                           categoria_id bigserial primary key,
+                           empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                           nombre text not null,
+                           activo boolean not null default true,
+                           unique (empresa_id, nombre),
+                           unique (empresa_id, categoria_id)
+);
 
--- 1) EMPRESAS
-INSERT INTO empresa (nombre, nit, estado)
-VALUES ('Tienda Don Pepe', '1234567011', 'ACTIVA'),
-       ('Market La Paz', '9876543210', 'ACTIVA');
+create table producto (
+                          producto_id bigserial primary key,
+                          empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                          categoria_id bigint not null,
+                          codigo text not null,
+                          descripcion text not null,
+                          precio numeric(12,2) not null default 0,
+                          stock_min integer not null default 0,
+                          activo boolean not null default true,
+                          unique (empresa_id, codigo),
+                          unique (empresa_id, producto_id),
+                          foreign key (empresa_id, categoria_id)
+                              references categoria(empresa_id, categoria_id)
+);
 
--- 2) CONFIG EMPRESA
-INSERT INTO empresa_config (empresa_id, moneda, tasa_impuesto, logo_url)
-VALUES (1, 'BOB', 13.000, 'https://cdn.demo/logo1.png'),
-       (2, 'BOB', 13.000, 'https://cdn.demo/logo2.png');
+create table existencia_producto (
+                                     empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                                     producto_id bigint not null,
+                                     cantidad_actual numeric(12,3) not null default 0,
+                                     primary key (empresa_id, producto_id),
+                                     foreign key (empresa_id, producto_id)
+                                         references producto(empresa_id, producto_id)
+                                         on delete cascade
+);
 
--- 3) USUARIOS (password_hash: string dummy solo para probar queries)
--- OJO: esto no es hash real bcrypt, es solo para poblar datos.
-INSERT INTO usuario (empresa_id, email, password_hash, activo)
-VALUES (1, 'platformaws@demo.com', 'HASH_DUMMY_1', true),
-       (1, 'admin@donpepe.com', 'HASH_DUMMY_2', true),
-       (1, 'seller1@donpepe.com', 'HASH_DUMMY_3', true),
-       (2, 'admin@marketlapaz.com', 'HASH_DUMMY_4', true),
-       (2, 'seller1@marketlapaz.com', 'HASH_DUMMY_5', true);
+create table movimiento_inventario (
+                                       movimiento_id bigserial primary key,
+                                       empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                                       producto_id bigint not null,
+                                       tipo text not null,
+                                       cantidad numeric(12,3) not null,
+                                       ref_tabla text,
+                                       ref_id bigint,
+                                       fecha timestamptz not null default now(),
+                                       realizado_por_usuario_id bigint not null references usuario(usuario_id),
+                                       unique (empresa_id, movimiento_id),
+                                       foreign key (empresa_id, producto_id)
+                                           references producto(empresa_id, producto_id)
+);
 
--- 4) ROLES (tablas separadas)
--- Empresa 1: platform@demo.com = ADMIN_PLATAFORMA
-INSERT INTO usuario_admin_plataforma (empresa_id, usuario_id)
-SELECT u.empresa_id, u.usuario_id
-FROM usuario u
-WHERE u.empresa_id = 1
-  AND u.email = 'platform@demo.com';
+create table proveedor (
+                           proveedor_id bigserial primary key,
+                           empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                           nombre text not null,
+                           telefono text,
+                           email text,
+                           datos_pago text,
+                           activo boolean not null default true,
+                           unique (empresa_id, proveedor_id)
+);
 
--- Empresa 1: admin@donpepe.com = ADMIN_EMPRESA
-INSERT INTO usuario_admin_empresa (empresa_id, usuario_id)
-SELECT u.empresa_id, u.usuario_id
-FROM usuario u
-WHERE u.empresa_id = 1
-  AND u.email = 'admin@donpepe.com';
+create table compra (
+                        compra_id bigserial primary key,
+                        empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                        proveedor_id bigint not null,
+                        fecha timestamptz not null default now(),
+                        total numeric(12,2) not null default 0,
+                        estado text not null,
+                        unique (empresa_id, compra_id),
+                        foreign key (empresa_id, proveedor_id)
+                            references proveedor(empresa_id, proveedor_id)
+);
 
--- Empresa 1: seller1@donpepe.com = VENDEDOR
-INSERT INTO usuario_vendedor (empresa_id, usuario_id)
-SELECT u.empresa_id, u.usuario_id
-FROM usuario u
-WHERE u.empresa_id = 1
-  AND u.email = 'seller1@donpepe.com';
+create table compra_detalle (
+                                compra_detalle_id bigserial primary key,
+                                empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                                compra_id bigint not null,
+                                producto_id bigint not null,
+                                cantidad numeric(12,3) not null,
+                                costo_unit numeric(12,2) not null,
+                                subtotal numeric(12,2) not null,
+                                unique (empresa_id, compra_detalle_id),
+                                foreign key (empresa_id, compra_id)
+                                    references compra(empresa_id, compra_id)
+                                    on delete cascade,
+                                foreign key (empresa_id, producto_id)
+                                    references producto(empresa_id, producto_id)
+);
 
--- Empresa 2: admin@marketlapaz.com = ADMIN_EMPRESA
-INSERT INTO usuario_admin_empresa (empresa_id, usuario_id)
-SELECT u.empresa_id, u.usuario_id
-FROM usuario u
-WHERE u.empresa_id = 2
-  AND u.email = 'admin@marketlapaz.com';
+create table cliente (
+                         cliente_id bigserial primary key,
+                         empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                         email text not null unique,
+                         password_hash text not null,
+                         nombre_razon text not null,
+                         nit_ci text,
+                         telefono text,
+                         activo boolean not null default true,
+                         creado_en timestamptz not null default now(),
+                         ultimo_login timestamptz,
+                         unique (empresa_id, cliente_id)
+);
 
--- Empresa 2: seller1@marketlapaz.com = VENDEDOR
-INSERT INTO usuario_vendedor (empresa_id, usuario_id)
-SELECT u.empresa_id, u.usuario_id
-FROM usuario u
-WHERE u.empresa_id = 2
-  AND u.email = 'seller1@marketlapaz.com';
+create table venta (
+                       venta_id bigserial primary key,
+                       empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                       cliente_id bigint not null,
+                       fecha_hora timestamptz not null default now(),
+                       total numeric(12,2) not null default 0,
+                       descuento_total numeric(12,2) not null default 0,
+                       estado text not null,
+                       unique (empresa_id, venta_id),
+                       foreign key (empresa_id, cliente_id)
+                           references cliente(empresa_id, cliente_id)
+);
 
-COMMIT;
+create table venta_detalle (
+                               venta_detalle_id bigserial primary key,
+                               empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                               venta_id bigint not null,
+                               producto_id bigint not null,
+                               cantidad numeric(12,3) not null,
+                               precio_unit numeric(12,2) not null,
+                               descuento numeric(12,2) not null default 0,
+                               subtotal numeric(12,2) not null,
+                               unique (empresa_id, venta_detalle_id),
+                               foreign key (empresa_id, venta_id)
+                                   references venta(empresa_id, venta_id)
+                                   on delete cascade,
+                               foreign key (empresa_id, producto_id)
+                                   references producto(empresa_id, producto_id)
+);
 
--- =========================
--- CONSULTAS PARA VERIFICAR
--- =========================
+create table venta_pago (
+                            venta_pago_id bigserial primary key,
+                            empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                            venta_id bigint not null,
+                            metodo text not null,
+                            monto numeric(12,2) not null,
+                            referencia_qr text,
+                            estado text not null,
+                            pagado_en timestamptz,
+                            unique (empresa_id, venta_pago_id),
+                            foreign key (empresa_id, venta_id)
+                                references venta(empresa_id, venta_id)
+                                on delete cascade
+);
 
--- Ver usuarios por empresa
-SELECT empresa_id, usuario_id, email, activo
-FROM usuario
-ORDER BY empresa_id, usuario_id;
+create table venta_comprobante (
+                                   comprobante_id bigserial primary key,
+                                   empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                                   venta_id bigint not null,
+                                   tipo text not null,
+                                   numero text,
+                                   url_pdf text,
+                                   emitido_en timestamptz not null default now(),
+                                   unique (empresa_id, comprobante_id),
+                                   foreign key (empresa_id, venta_id)
+                                       references venta(empresa_id, venta_id)
+                                       on delete cascade
+);
 
--- Ver roles por empresa (join simple)
-SELECT u.empresa_id,
-       u.usuario_id,
-       u.email,
-       CASE WHEN ap.usuario_id IS NOT NULL THEN 'ADMIN_PLATAFORMA' END AS admin_plataforma,
-       CASE WHEN ae.usuario_id IS NOT NULL THEN 'ADMIN_EMPRESA' END    AS admin_empresa,
-       CASE WHEN v.usuario_id IS NOT NULL THEN 'VENDEDOR' END          AS vendedor
-FROM usuario u
-         LEFT JOIN usuario_admin_plataforma ap
-                   ON ap.empresa_id = u.empresa_id AND ap.usuario_id = u.usuario_id
-         LEFT JOIN usuario_admin_empresa ae
-                   ON ae.empresa_id = u.empresa_id AND ae.usuario_id = u.usuario_id
-         LEFT JOIN usuario_vendedor v
-                   ON v.empresa_id = u.empresa_id AND v.usuario_id = u.usuario_id
-ORDER BY u.empresa_id, u.usuario_id;
+create table venta_envio (
+                             envio_id bigserial primary key,
+                             empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                             venta_id bigint not null,
+                             departamento text not null,
+                             ciudad text not null,
+                             zona_barrio text,
+                             direccion_linea text not null,
+                             referencia text,
+                             telefono_receptor text,
+                             costo_envio numeric(12,2) not null default 0,
+                             estado_envio text not null,
+                             tracking text,
+                             fecha_despacho timestamptz,
+                             fecha_entrega timestamptz,
+                             unique (empresa_id, venta_id),
+                             unique (empresa_id, envio_id),
+                             foreign key (empresa_id, venta_id)
+                                 references venta(empresa_id, venta_id)
+                                 on delete cascade
+);
+
+create table notificacion (
+                              notificacion_id bigserial primary key,
+                              empresa_id bigint not null references empresa(empresa_id) on delete cascade,
+                              usuario_id bigint not null references usuario(usuario_id) on delete cascade,
+                              canal text not null,
+                              titulo text not null,
+                              cuerpo text not null,
+                              creado_en timestamptz not null default now(),
+                              leido_en timestamptz,
+                              unique (empresa_id, notificacion_id)
+);
+
+create index idx_empresa_nombre on empresa(nombre);
+create index idx_plan_nombre on plan(nombre);
+
+create index idx_suscripcion_empresa on suscripcion(empresa_id);
+create index idx_suscripcion_pago_empresa on suscripcion_pago(empresa_id);
+
+create index idx_empresa_usuario_usuario on empresa_usuario(usuario_id);
+
+create index idx_categoria_empresa on categoria(empresa_id);
+create index idx_producto_empresa on producto(empresa_id);
+
+create index idx_cliente_empresa on cliente(empresa_id);
+create index idx_venta_empresa on venta(empresa_id);
+create index idx_compra_empresa on compra(empresa_id);
+
+create table if not exists token_blocklist (
+                                               jti text primary key,
+                                               usuario_id bigint,
+                                               revoked_at timestamptz not null default now()
+    );
+
+create index if not exists idx_token_blocklist_usuario_id
+    on token_blocklist (usuario_id);

@@ -1,54 +1,41 @@
-from flask import Flask, g, request
-from flask_jwt_extended import verify_jwt_in_request, get_jwt
-from app.extensions import db, migrate, cors
+from flask import Flask, jsonify
 from app.config import Config
+from app.extensions import db as sa_db, migrate, cors
 from app.security.jwt import init_jwt
-from app.auth.routes import auth_bp
-from app.system import system_bp
+from app.common.tenant_context import init_tenant_context
 
-def create_app():
-    app = Flask(__name__)
+def create_app() -> Flask:
+    flask_app = Flask(__name__)
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = Config.db_uri()
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = Config.jwt_secret()
+    flask_app.config["SQLALCHEMY_DATABASE_URI"] = Config.db_uri()
+    flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    flask_app.config["JWT_SECRET_KEY"] = Config.jwt_secret()
 
-    db.init_app(app)
-    migrate.init_app(app, db)
-    init_jwt(app)
-    cors.init_app(app)
+    sa_db.init_app(flask_app)
+    migrate.init_app(flask_app, sa_db)
+    init_jwt(flask_app)
+    cors.init_app(flask_app)
 
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(system_bp)
+    import app.db.models
 
-    from app.modules.users import users_bp
-    app.register_blueprint(users_bp)
+    from app.auth.routes import auth_bp
+    from app.modules.tenants.routes import tenants_bp
+    from app.modules.users.routes import users_bp
+    from app.modules.clients.routes import clients_bp
 
-    @app.get("/")
+    flask_app.register_blueprint(auth_bp)
+    flask_app.register_blueprint(tenants_bp)
+    flask_app.register_blueprint(users_bp)
+    flask_app.register_blueprint(clients_bp)
+
+    init_tenant_context(flask_app)
+
+    @flask_app.get("/")
     def root():
-        return {"message": "ok"}
+        return jsonify({"message": "ok"})
 
-    @app.get("/health")
+    @flask_app.get("/health")
     def health():
-        return {"status": "ok"}
+        return jsonify({"status": "ok"})
 
-    @app.before_request
-    def tenant_context():
-        if (
-            request.path.startswith("/auth/")
-            or request.path.startswith("/health")
-            or request.path == "/"
-            or request.path.startswith("/static/")
-        ):
-            return
-
-        if request.method == "OPTIONS":
-            return
-
-        verify_jwt_in_request()
-        claims = get_jwt()
-        g.empresa_id = claims.get("empresa_id")
-        g.usuario_id = claims.get("usuario_id")
-        g.roles = claims.get("roles", [])
-
-    return app
+    return flask_app
