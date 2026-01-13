@@ -1,14 +1,16 @@
 import os
-from urllib.parse import quote_plus
+from sqlalchemy.engine import URL
 
 def _db_uri() -> str:
-    host = os.getenv("DB_HOST", "localhost")
-    port = os.getenv("DB_PORT", "5432")
-    name = os.getenv("DB_NAME", "microempresa")
-    user = os.getenv("DB_USER", "postgres")
-    password = os.getenv("DB_PASS", "postgres")
-    password_q = quote_plus(password)
-    return f"postgresql+psycopg2://{user}:{password_q}@{host}:{port}/{name}"
+    url = URL.create(
+        drivername="postgresql+psycopg2",
+        username=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASS", "postgres"),
+        host=os.getenv("DB_HOST", "localhost"),
+        port=int(os.getenv("DB_PORT", "5432")),
+        database=os.getenv("DB_NAME", "microempresa"),
+    )
+    return url.render_as_string(hide_password=False)
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "change_me")
@@ -23,5 +25,5 @@ class Config:
         "max_overflow": 10,
         "connect_args": {
             "sslmode": os.getenv("DB_SSLMODE", "prefer")
-        }
+        },
     }
