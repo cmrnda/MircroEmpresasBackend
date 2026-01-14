@@ -23,6 +23,14 @@ def is_platform_admin(usuario_id):
 def get_tenant_user(empresa_id, usuario_id):
     return UsuarioEmpresa.query.filter_by(empresa_id=empresa_id, usuario_id=usuario_id).first()
 
+def list_empresas_for_usuario(usuario_id):
+    rows = UsuarioEmpresa.query.filter_by(usuario_id=usuario_id, activo=True).all()
+    return [r.empresa_id for r in rows]
+
+def list_empresas_for_cliente_email(email):
+    rows = Cliente.query.filter_by(email=email, activo=True).all()
+    return [r.empresa_id for r in rows]
+
 
 def get_roles_for_user(empresa_id, usuario_id):
     roles = []
@@ -47,3 +55,23 @@ def get_cliente(empresa_id, email):
 def touch_cliente_login(cliente):
     cliente.ultimo_login = datetime.now(timezone.utc)
     db.session.commit()
+
+# app/auth/repository.py
+
+def list_empresas_for_usuario(usuario_id: int):
+    rows = (
+        UsuarioEmpresa.query
+        .filter_by(usuario_id=usuario_id, activo=True)
+        .with_entities(UsuarioEmpresa.empresa_id)
+        .all()
+    )
+    return [r[0] for r in rows]
+
+def list_empresas_for_cliente_email(email: str):
+    rows = (
+        Cliente.query
+        .filter_by(email=email, activo=True)
+        .with_entities(Cliente.empresa_id)
+        .all()
+    )
+    return [r[0] for r in rows]

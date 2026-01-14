@@ -11,6 +11,16 @@ from app.modules.users.repository import (
 from app.extensions import db
 from sqlalchemy.exc import IntegrityError
 from app.db.models.usuario import Usuario
+import secrets
+import string
+from app.extensions import db
+from app.modules.users.repository import get_user, user_roles
+from app.security.password import hash_password
+import secrets
+import string
+from app.extensions import db
+from app.modules.users.repository import get_user, user_roles
+from app.security.password import hash_password
 
 def tenant_list_users(empresa_id):
     rows = list_users(empresa_id)
@@ -63,3 +73,41 @@ def tenant_delete_user(empresa_id, usuario_id):
         return False
     detach_user(empresa_id, usuario_id)
     return True
+
+def _temp_password(length=10):
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+def tenant_reset_usuario_password(empresa_id, usuario_id):
+    u, ue = get_user(empresa_id, usuario_id)
+    if not u:
+        return None, "not_found"
+
+    roles = user_roles(empresa_id, usuario_id)
+    if "TENANT_ADMIN" in roles:
+        return None, "forbidden_target_role"
+
+    temp = _temp_password(10)
+    u.password_hash = hash_password(temp)
+    db.session.commit()
+
+    return {"ok": True, "empresa_id": int(empresa_id), "usuario_id": int(usuario_id), "temp_password": temp}, None
+
+def _temp_password(length=10):
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+def tenant_reset_usuario_password(empresa_id, usuario_id):
+    u, ue = get_user(empresa_id, usuario_id)
+    if not u:
+        return None, "not_found"
+
+    roles = user_roles(empresa_id, usuario_id)
+    if "TENANT_ADMIN" in roles:
+        return None, "forbidden_target_role"
+
+    temp = _temp_password(10)
+    u.password_hash = hash_password(temp)
+    db.session.commit()
+
+    return {"ok": True, "empresa_id": int(empresa_id), "usuario_id": int(usuario_id), "temp_password": temp}, None
