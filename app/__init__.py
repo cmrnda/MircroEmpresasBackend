@@ -25,11 +25,15 @@ def create_app():
     from app.modules.users.routes import bp as users_bp
     from app.modules.clients.routes import bp as clients_bp
     from app.modules.platform_users.routes import bp as platform_users_bp
+    from app.modules.subscriptions.api_platform import bp as platform_subscriptions_bp
+    from app.modules.subscriptions.api_tenant import bp as tenant_subscriptions_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(tenants_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(clients_bp)
     app.register_blueprint(platform_users_bp)
+    app.register_blueprint(platform_subscriptions_bp)
+    app.register_blueprint(tenant_subscriptions_bp)
 
     return app

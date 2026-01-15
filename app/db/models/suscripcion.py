@@ -1,5 +1,6 @@
 from app.extensions import db
 
+
 class Suscripcion(db.Model):
     __tablename__ = "suscripcion"
 
@@ -9,8 +10,13 @@ class Suscripcion(db.Model):
     estado = db.Column(db.Text, nullable=False)
     inicio = db.Column(db.Date, nullable=False)
     fin = db.Column(db.Date, nullable=True)
-    renovacion = db.Column(db.Date, nullable=True)
 
-    __table_args__ = (
-        db.UniqueConstraint("empresa_id", "suscripcion_id", name="uq_suscripcion_empresa_suscripcion_id"),
-    )
+    def to_dict(self):
+        return {
+            "suscripcion_id": self.suscripcion_id,
+            "empresa_id": self.empresa_id,
+            "plan_id": self.plan_id,
+            "estado": self.estado,
+            "inicio": self.inicio.isoformat(),
+            "fin": self.fin.isoformat() if self.fin else None,
+        }
