@@ -4,6 +4,11 @@ from flask_jwt_extended import jwt_required
 from app.common.authz import require_tenant_admin
 from app.common.tenant_context import current_empresa_id
 from app.modules.users.service import tenant_list_users, tenant_create_user, tenant_update_user, tenant_delete_user
+from flask import jsonify, request
+from flask_jwt_extended import jwt_required
+from app.common.authz import require_tenant_admin
+from app.common.tenant_context import current_empresa_id
+from app.modules.users.service import tenant_reset_usuario_password
 
 bp = Blueprint("users", __name__, url_prefix="/tenant/users")
 
@@ -49,3 +54,32 @@ def delete_user(usuario_id):
     if not ok:
         return jsonify({"error": "not_found"}), 404
     return jsonify({"ok": True}), 200
+
+
+@bp.post("/<int:usuario_id>/reset-password")
+@jwt_required()
+@require_tenant_admin
+def reset_password(usuario_id):
+    empresa_id = current_empresa_id()
+    res, err = tenant_reset_usuario_password(empresa_id, usuario_id)
+    if err:
+        if err == "forbidden_target_role":
+            return jsonify({"error": err}), 403
+        if err == "not_found":
+            return jsonify({"error": err}), 404
+        return jsonify({"error": err}), 400
+    return jsonify(res), 200
+
+@bp.post("/<int:usuario_id>/reset-password")
+@jwt_required()
+@require_tenant_admin
+def tenant_reset_password(usuario_id):
+    empresa_id = current_empresa_id()
+    res, err = tenant_reset_usuario_password(empresa_id, usuario_id)
+    if err:
+        if err == "forbidden_target_role":
+            return jsonify({"error": err}), 403
+        if err == "not_found":
+            return jsonify({"error": err}), 404
+        return jsonify({"error": err}), 400
+    return jsonify(res), 200
