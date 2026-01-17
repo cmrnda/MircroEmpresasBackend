@@ -13,7 +13,7 @@ def create_app():
         app,
         resources={r"/*": {"origins": ["http://localhost:4200", "http://127.0.0.1:4200"]}},
         allow_headers=["Content-Type", "Authorization", "X-Empresa-Id"],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         expose_headers=["Authorization"]
     )
 
@@ -37,4 +37,5 @@ def create_app():
     app.register_blueprint(platform_subscriptions_bp)
     app.register_blueprint(tenant_subscriptions_bp)
     app.register_blueprint(empresa_config_bp)
+
     return app
