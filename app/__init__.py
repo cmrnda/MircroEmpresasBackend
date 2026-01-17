@@ -28,6 +28,7 @@ def create_app():
     from app.modules.subscriptions.api_platform import bp as platform_subscriptions_bp
     from app.modules.subscriptions.api_tenant import bp as tenant_subscriptions_bp
     from app.modules.empresa_config.routes import bp as empresa_config_bp
+    from app.modules.platform_clients.routes import bp as platform_clients_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(tenants_bp)
@@ -37,5 +38,6 @@ def create_app():
     app.register_blueprint(platform_subscriptions_bp)
     app.register_blueprint(tenant_subscriptions_bp)
     app.register_blueprint(empresa_config_bp)
+    app.register_blueprint(platform_clients_bp)
 
     return app
