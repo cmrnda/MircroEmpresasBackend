@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 
@@ -8,6 +9,24 @@ from app.extensions import db
 
 def list_empresas():
     return Empresa.query.order_by(Empresa.empresa_id.desc()).all()
+
+
+def list_empresas_filtered(q=None, estado=None):
+    query = Empresa.query
+
+    if estado:
+        query = query.filter(Empresa.estado == estado)
+
+    if q:
+        term = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                Empresa.nombre.ilike(term),
+                Empresa.nit.ilike(term)
+            )
+        )
+
+    return query.order_by(Empresa.empresa_id.desc()).all()
 
 
 def get_empresa(empresa_id):

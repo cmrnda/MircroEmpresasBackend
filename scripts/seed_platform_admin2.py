@@ -2,7 +2,7 @@ from app import create_app
 from app.extensions import db
 from app.db.models.usuario import Usuario
 from app.db.models.usuario import UsuarioAdminPlataforma
-from app.security.passwords import hash_password
+from app.security.password import hash_password
 
 EMAIL = "breakglass@platform.com"
 PASSWORD = "BreakGlass_ChangeMe_12345"

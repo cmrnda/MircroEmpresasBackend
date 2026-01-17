@@ -6,13 +6,13 @@ class Plan(db.Model):
 
     plan_id = db.Column(db.BigInteger, primary_key=True)
     nombre = db.Column(db.Text, nullable=False)
-    precio = db.Column(db.Numeric(12, 2), nullable=False)
+    precio = db.Column(db.Numeric(12, 2), nullable=False, server_default="0")
     periodo_cobro = db.Column(db.Text, nullable=False)
 
     def to_dict(self):
         return {
-            "plan_id": self.plan_id,
+            "plan_id": int(self.plan_id) if self.plan_id is not None else None,
             "nombre": self.nombre,
-            "precio": float(self.precio),
+            "precio": float(self.precio) if self.precio is not None else None,
             "periodo_cobro": self.periodo_cobro,
         }

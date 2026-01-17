@@ -10,10 +10,14 @@ from app.modules.tenants.service import (
 
 bp = Blueprint("tenants", __name__, url_prefix="/platform/tenants")
 
+
 @bp.get("")
 @require_platform_admin
 def list_tenants():
-    return jsonify(platform_list_tenants()), 200
+    q = request.args.get("q") or None
+    estado = request.args.get("estado") or None
+    return jsonify(platform_list_tenants(q=q, estado=estado)), 200
+
 
 @bp.post("")
 @require_platform_admin
@@ -24,6 +28,7 @@ def create_tenant():
         return jsonify({"error": err}), 400
     return jsonify(res), 201
 
+
 @bp.get("/<int:empresa_id>")
 @require_platform_admin
 def get_tenant(empresa_id):
@@ -31,6 +36,7 @@ def get_tenant(empresa_id):
     if not e:
         return jsonify({"error": "not_found"}), 404
     return jsonify(e), 200
+
 
 @bp.put("/<int:empresa_id>")
 @require_platform_admin
@@ -40,6 +46,7 @@ def update_tenant(empresa_id):
     if not e:
         return jsonify({"error": "not_found"}), 404
     return jsonify(e), 200
+
 
 @bp.delete("/<int:empresa_id>")
 @require_platform_admin
