@@ -39,3 +39,6 @@ def require_tenant_user(fn):
 
 def require_client(fn):
     return require_types("client")(fn)
+
+def require_seller(fn):
+    return require_types("user")(require_roles("SELLER")(fn))
