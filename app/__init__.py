@@ -32,6 +32,13 @@ def create_app():
     from app.modules.categories.routes import bp as categories_bp
     from app.modules.products.routes import bp as products_bp
 
+    from app.modules.shop.routes import bp as shop_bp
+    from app.modules.shop_orders.routes import bp as shop_orders_bp
+    from app.modules.orders.routes import bp as orders_bp
+    from app.modules.inventory.routes import bp as inventory_bp
+    from app.modules.product_images.routes import bp as product_images_bp
+    from app.modules.media.routes import bp as media_bp
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(tenants_bp)
     app.register_blueprint(users_bp)
@@ -43,4 +50,14 @@ def create_app():
     app.register_blueprint(platform_clients_bp)
     app.register_blueprint(categories_bp)
     app.register_blueprint(products_bp)
+
+    app.register_blueprint(shop_bp)
+    app.register_blueprint(shop_orders_bp)
+    app.register_blueprint(orders_bp)
+    app.register_blueprint(inventory_bp)
+    app.register_blueprint(product_images_bp)
+    app.register_blueprint(media_bp)
+
+    app.config.setdefault("UPLOAD_ROOT", "uploads")
+
     return app
