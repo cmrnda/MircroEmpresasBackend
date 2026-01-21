@@ -13,8 +13,10 @@ def platform_create_plan(payload: dict):
     nombre = (payload.get("nombre") or "").strip()
     periodo_cobro = (payload.get("periodo_cobro") or "").strip()
     precio = payload.get("precio")
+
     if not nombre or not periodo_cobro or precio is None:
         return None, "invalid_payload"
+
     try:
         with db.session.begin():
             p = create_plan(nombre, precio, periodo_cobro)
@@ -24,11 +26,11 @@ def platform_create_plan(payload: dict):
         return None, "conflict"
 
 def platform_update_plan(plan_id: int, payload: dict):
-    p = get_plan(int(plan_id))
-    if not p:
-        return None, "not_found"
     try:
         with db.session.begin():
+            p = get_plan(int(plan_id))
+            if not p:
+                return None, "not_found"
             update_plan(p, payload)
         return p.to_dict(), None
     except IntegrityError:

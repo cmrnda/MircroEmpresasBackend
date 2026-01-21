@@ -2,10 +2,8 @@ from app.extensions import db
 from app.database.models.empresa_settings import EmpresaSettings
 from app.database.models.empresa import Empresa
 
-
 def _get_settings(empresa_id: int):
     return db.session.query(EmpresaSettings).filter(EmpresaSettings.empresa_id == int(empresa_id)).first()
-
 
 def _ensure_settings(empresa_id: int):
     s = _get_settings(int(empresa_id))
@@ -15,7 +13,6 @@ def _ensure_settings(empresa_id: int):
     db.session.add(s)
     db.session.flush()
     return s
-
 
 def _set_subscription_fields(s: EmpresaSettings, payload: dict):
     allowed = {
@@ -38,7 +35,6 @@ def _set_subscription_fields(s: EmpresaSettings, payload: dict):
 
     db.session.add(s)
     return s
-
 
 def platform_list_subscriptions(include_inactivos: bool = False):
     q = (
@@ -72,7 +68,6 @@ def platform_list_subscriptions(include_inactivos: bool = False):
 
     return items
 
-
 def platform_get_subscription(empresa_id: int):
     e = db.session.query(Empresa).filter(Empresa.empresa_id == int(empresa_id)).first()
     if not e:
@@ -97,14 +92,13 @@ def platform_get_subscription(empresa_id: int):
         "ultimo_pagado_en": getattr(s, "ultimo_pagado_en", None),
     }
 
-
 def platform_update_subscription(empresa_id: int, payload: dict):
-    e = db.session.query(Empresa).filter(Empresa.empresa_id == int(empresa_id)).first()
-    if not e:
-        return None, "not_found"
+    with db.session.begin():
+        e = db.session.query(Empresa).filter(Empresa.empresa_id == int(empresa_id)).first()
+        if not e:
+            return None, "not_found"
 
-    s = _ensure_settings(int(empresa_id))
-    _set_subscription_fields(s, payload)
+        s = _ensure_settings(int(empresa_id))
+        _set_subscription_fields(s, payload)
 
-    db.session.commit()
     return platform_get_subscription(int(empresa_id)), None
