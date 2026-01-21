@@ -12,6 +12,8 @@ class TokenBlocklist(db.Model):
         db.Index("idx_token_blocklist_usuario", "usuario_id"),
     )
 
+    usuario = db.relationship("Usuario", back_populates="token_blocklist")
+
     def to_dict(self):
         return {
             "jti": self.jti,

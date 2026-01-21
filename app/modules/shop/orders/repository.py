@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from app.extensions import db
 from app.database.models.venta import Venta, VentaDetalle
-from app.database.models.catalogo import Producto
+from app.database.models.producto import Producto
 from app.database.models.cliente import ClienteEmpresa
 from app.database.models.usuario import UsuarioAdminEmpresa, UsuarioVendedor
 #from app.modules.tenant.notifications.repository import create_for_user, create_for_client

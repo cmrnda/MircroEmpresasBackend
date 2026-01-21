@@ -1,10 +1,9 @@
-from passlib.hash import bcrypt
+from werkzeug.security import generate_password_hash, check_password_hash
 
-def hash_password(raw: str):
-    return bcrypt.hash(str(raw))
 
-def verify_password(raw: str, password_hash: str):
-    try:
-        return bcrypt.verify(str(raw), str(password_hash))
-    except Exception:
-        return False
+def hash_password(raw: str) -> str:
+    return generate_password_hash(str(raw))
+
+
+def verify_password(raw: str, password_hash: str) -> bool:
+    return check_password_hash(password_hash, str(raw))

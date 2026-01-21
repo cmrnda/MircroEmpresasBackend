@@ -17,6 +17,7 @@ class Usuario(db.Model):
     empresas = db.relationship("UsuarioEmpresa", back_populates="usuario", cascade="all, delete-orphan")
 
     notificaciones = db.relationship("Notificacion", back_populates="usuario")
+    token_blocklist = db.relationship("TokenBlocklist", back_populates="usuario")
 
     def to_dict(self):
         return {

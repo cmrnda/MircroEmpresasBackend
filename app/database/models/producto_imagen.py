@@ -22,7 +22,12 @@ class ProductoImagen(db.Model):
         db.CheckConstraint("file_size >= 0", name="ck_producto_imagen_file_size"),
     )
 
-    producto = db.relationship("Producto", back_populates="imagen")
+    producto = db.relationship(
+        "Producto",
+        back_populates="imagen",
+        primaryjoin="and_(ProductoImagen.empresa_id==Producto.empresa_id, ProductoImagen.producto_id==Producto.producto_id)",
+        foreign_keys="[ProductoImagen.empresa_id, ProductoImagen.producto_id]",
+    )
 
     def to_dict(self):
         return {

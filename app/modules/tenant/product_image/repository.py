@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from app.extensions import db
-from app.database.models.catalogo import ProductoImagen, Producto
+from app.database.models.producto import Producto
+from app.database.models.producto_imagen import ProductoImagen
 
 def get_image(empresa_id: int, producto_id: int):
     return (

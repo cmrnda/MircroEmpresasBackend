@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.database.models.catalogo import Categoria
+from app.database.models.categoria import Categoria
 
 def list_categories(empresa_id: int, q=None, include_inactivos=False):
     query = db.session.query(Categoria).filter(Categoria.empresa_id == int(empresa_id))

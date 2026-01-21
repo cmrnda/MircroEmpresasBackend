@@ -17,7 +17,15 @@ class Categoria(db.Model):
     )
 
     empresa = db.relationship("Empresa", back_populates="categorias")
-    productos = db.relationship("Producto", back_populates="categoria")
+
+    productos = db.relationship(
+        "Producto",
+        back_populates="categoria",
+        cascade="all, delete-orphan",
+        primaryjoin="and_(Categoria.empresa_id==Producto.empresa_id, Categoria.categoria_id==Producto.categoria_id)",
+        foreign_keys="[Producto.empresa_id, Producto.categoria_id]",
+        overlaps="productos",
+    )
 
     def to_dict(self):
         return {

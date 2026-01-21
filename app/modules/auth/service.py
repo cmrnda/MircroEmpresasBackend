@@ -1,108 +1,139 @@
-from flask_jwt_extended import create_access_token
-from sqlalchemy.exc import IntegrityError
+from datetime import datetime, timezone
+
+from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt
+from werkzeug.security import generate_password_hash, check_password_hash
+
 from app.extensions import db
-from app.security.password import verify_password
+from app.database.models.usuario import Usuario, UsuarioAdminPlataforma
+from app.database.models.token_blocklist import TokenBlocklist
 from app.modules.auth.repository import (
     get_usuario_by_email,
-    get_cliente_by_email,
     is_platform_admin,
-    get_empresa,
-    get_membership,
-    get_tenant_roles,
-    get_cliente_empresa_link,
-    touch_usuario_login,
-    touch_cliente_login,
-    revoke_jti,
+    tenant_memberships,
+    get_tenant_user,
+    get_roles_for_user,
+    clients_by_email,
+    get_cliente_by_email,
+    get_cliente_for_tenant,
 )
 
-def platform_login(email: str, password: str):
+
+def signup_platform_admin(email: str, password: str):
+    if not email or not password:
+        return None, "invalid_payload"
+
+    if get_usuario_by_email(email):
+        return None, "email_already_exists"
+
+    u = Usuario(
+        email=email,
+        password_hash=generate_password_hash(password),
+        activo=True,
+        creado_en=datetime.now(timezone.utc),
+    )
+    db.session.add(u)
+    db.session.flush()
+
+    db.session.add(UsuarioAdminPlataforma(usuario_id=u.usuario_id))
+    db.session.commit()
+
+    return u.to_dict(), None
+
+
+def _pwd_ok(raw: str, hashed: str) -> bool:
+    return check_password_hash(hashed, raw)
+
+
+def login_platform(email, password):
     u = get_usuario_by_email(email)
-    if not u or not bool(u.activo):
+    if not u or not u.activo:
         return None, "invalid_credentials"
-    if not verify_password(password, u.password_hash):
+    if not _pwd_ok(password, u.password_hash):
         return None, "invalid_credentials"
     if not is_platform_admin(u.usuario_id):
         return None, "forbidden"
 
-    claims = {
-        "actor_type": "user",
-        "usuario_id": int(u.usuario_id),
-        "empresa_id": None,
-        "cliente_id": None,
-        "roles": ["PLATFORM_ADMIN"],
-    }
+    u.ultimo_login = datetime.now(timezone.utc)
+    db.session.commit()
 
-    with db.session.begin():
-        touch_usuario_login(u)
+    claims = {"type": "platform", "usuario_id": u.usuario_id, "roles": ["PLATFORM_ADMIN"]}
+    return {
+        "access_token": create_access_token(identity=str(u.usuario_id), additional_claims=claims),
+        "refresh_token": create_refresh_token(identity=str(u.usuario_id), additional_claims=claims),
+        "usuario": u.to_dict(),
+    }, None
 
-    token = create_access_token(identity=str(u.usuario_id), additional_claims=claims)
-    return {"access_token": token, "user": u.to_dict(), "claims": claims}, None
 
-def tenant_login(empresa_id: int, email: str, password: str):
-    e = get_empresa(empresa_id)
-    if not e or e.estado != "ACTIVA":
-        return None, "invalid_tenant"
+def login_tenant_user(email, password, empresa_id=None):
     u = get_usuario_by_email(email)
-    if not u or not bool(u.activo):
+    if not u or not u.activo:
         return None, "invalid_credentials"
-    if not verify_password(password, u.password_hash):
+    if not _pwd_ok(password, u.password_hash):
         return None, "invalid_credentials"
 
-    m = get_membership(empresa_id, u.usuario_id)
-    if not m or not bool(m.activo):
+    memberships = tenant_memberships(u.usuario_id)
+    if not memberships:
+        return None, "invalid_credentials"
+
+    if empresa_id is None:
+        if len(memberships) != 1:
+            return {"tenants": memberships}, "empresa_required"
+        empresa_id = memberships[0]["empresa_id"]
+
+    ue = get_tenant_user(int(empresa_id), u.usuario_id)
+    if not ue or not ue.activo:
         return None, "forbidden"
 
-    roles = get_tenant_roles(empresa_id, u.usuario_id)
-    if len(roles) == 0:
+    roles = get_roles_for_user(int(empresa_id), u.usuario_id)
+    if not roles:
         return None, "forbidden"
 
-    claims = {
-        "actor_type": "user",
-        "usuario_id": int(u.usuario_id),
-        "empresa_id": int(empresa_id),
-        "cliente_id": None,
+    u.ultimo_login = datetime.now(timezone.utc)
+    db.session.commit()
+
+    claims = {"type": "user", "usuario_id": u.usuario_id, "empresa_id": int(empresa_id), "roles": roles}
+    return {
+        "access_token": create_access_token(identity=str(u.usuario_id), additional_claims=claims),
+        "refresh_token": create_refresh_token(identity=str(u.usuario_id), additional_claims=claims),
+        "usuario": u.to_dict(),
         "roles": roles,
-    }
+        "empresa_id": int(empresa_id),
+    }, None
 
-    with db.session.begin():
-        touch_usuario_login(u)
 
-    token = create_access_token(identity=f"{empresa_id}:{u.usuario_id}", additional_claims=claims)
-    return {"access_token": token, "user": u.to_dict(), "empresa": e.to_dict(), "claims": claims}, None
-
-def client_login(empresa_id: int, email: str, password: str):
-    e = get_empresa(empresa_id)
-    if not e or e.estado != "ACTIVA":
-        return None, "invalid_tenant"
+def login_client(email, password, empresa_id=None):
     c = get_cliente_by_email(email)
-    if not c or not bool(c.activo):
+    if not c or not c.activo:
         return None, "invalid_credentials"
-    if not verify_password(password, c.password_hash):
+    if not _pwd_ok(password, c.password_hash):
         return None, "invalid_credentials"
 
-    link = get_cliente_empresa_link(empresa_id, c.cliente_id)
-    if not link or not bool(link.activo):
+    if empresa_id is None:
+        matches = clients_by_email(email)
+        if len(matches) != 1:
+            return {"tenants": matches}, "empresa_required"
+        empresa_id = matches[0]["empresa_id"]
+
+    if not get_cliente_for_tenant(int(empresa_id), c.cliente_id):
         return None, "forbidden"
 
-    claims = {
-        "actor_type": "client",
-        "usuario_id": None,
+    c.ultimo_login = datetime.now(timezone.utc)
+    db.session.commit()
+
+    claims = {"type": "client", "cliente_id": c.cliente_id, "empresa_id": int(empresa_id)}
+    return {
+        "access_token": create_access_token(identity=str(c.cliente_id), additional_claims=claims),
+        "refresh_token": create_refresh_token(identity=str(c.cliente_id), additional_claims=claims),
+        "cliente": c.to_dict(),
         "empresa_id": int(empresa_id),
-        "cliente_id": int(c.cliente_id),
-        "roles": ["CLIENT"],
-    }
+    }, None
 
-    with db.session.begin():
-        touch_cliente_login(c)
 
-    token = create_access_token(identity=f"{empresa_id}:{c.cliente_id}", additional_claims=claims)
-    return {"access_token": token, "client": c.to_dict(), "empresa": e.to_dict(), "claims": claims}, None
-
-def logout(jti: str, usuario_id: int | None):
-    try:
-        with db.session.begin():
-            revoke_jti(jti, usuario_id)
-        return True
-    except IntegrityError:
-        db.session.rollback()
+def logout_current_token():
+    jti = (get_jwt() or {}).get("jti")
+    usuario_id = (get_jwt() or {}).get("usuario_id")
+    if not jti:
         return False
+    db.session.add(TokenBlocklist(jti=jti, usuario_id=usuario_id))
+    db.session.commit()
+    return True

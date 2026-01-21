@@ -30,8 +30,15 @@ class Producto(db.Model):
         db.Index("idx_producto_categoria", "empresa_id", "categoria_id"),
     )
 
-    empresa = db.relationship("Empresa", back_populates="productos")
-    categoria = db.relationship("Categoria", back_populates="productos")
+    empresa = db.relationship("Empresa", back_populates="productos", overlaps="productos")
+
+    categoria = db.relationship(
+        "Categoria",
+        back_populates="productos",
+        primaryjoin="and_(Producto.empresa_id==Categoria.empresa_id, Producto.categoria_id==Categoria.categoria_id)",
+        foreign_keys="[Producto.empresa_id, Producto.categoria_id]",
+        overlaps="empresa,productos",
+    )
 
     imagen = db.relationship("ProductoImagen", uselist=False, back_populates="producto", cascade="all, delete-orphan")
 

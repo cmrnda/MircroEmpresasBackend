@@ -1,5 +1,6 @@
 from app.extensions import db
 
+
 class Venta(db.Model):
     __tablename__ = "venta"
 
@@ -12,35 +13,56 @@ class Venta(db.Model):
     descuento_total = db.Column(db.Numeric(12, 2), nullable=False, server_default="0")
     estado = db.Column(db.Text, nullable=False, server_default="CREADA")
 
-    pago_metodo = db.Column(db.Text, nullable=True)
-    pago_monto = db.Column(db.Numeric(12, 2), nullable=True)
-    pago_referencia_qr = db.Column(db.Text, nullable=True)
-    pago_estado = db.Column(db.Text, nullable=True)
-    pagado_en = db.Column(db.DateTime(timezone=True), nullable=True)
+    pago_metodo = db.Column(db.Text)
+    pago_monto = db.Column(db.Numeric(12, 2))
+    pago_referencia_qr = db.Column(db.Text)
+    pago_estado = db.Column(db.Text)
+    pagado_en = db.Column(db.DateTime(timezone=True))
 
-    comprobante_tipo = db.Column(db.Text, nullable=True)
-    comprobante_numero = db.Column(db.Text, nullable=True)
-    comprobante_url_pdf = db.Column(db.Text, nullable=True)
-    comprobante_emitido_en = db.Column(db.DateTime(timezone=True), nullable=True)
+    comprobante_tipo = db.Column(db.Text)
+    comprobante_numero = db.Column(db.Text)
+    comprobante_url_pdf = db.Column(db.Text)
+    comprobante_emitido_en = db.Column(db.DateTime(timezone=True))
 
-    envio_departamento = db.Column(db.Text, nullable=True)
-    envio_ciudad = db.Column(db.Text, nullable=True)
-    envio_zona_barrio = db.Column(db.Text, nullable=True)
-    envio_direccion_linea = db.Column(db.Text, nullable=True)
-    envio_referencia = db.Column(db.Text, nullable=True)
-    envio_telefono_receptor = db.Column(db.Text, nullable=True)
+    envio_departamento = db.Column(db.Text)
+    envio_ciudad = db.Column(db.Text)
+    envio_zona_barrio = db.Column(db.Text)
+    envio_direccion_linea = db.Column(db.Text)
+    envio_referencia = db.Column(db.Text)
+    envio_telefono_receptor = db.Column(db.Text)
     envio_costo = db.Column(db.Numeric(12, 2), nullable=False, server_default="0")
-    envio_estado = db.Column(db.Text, nullable=True)
-    envio_tracking = db.Column(db.Text, nullable=True)
-    envio_fecha_despacho = db.Column(db.DateTime(timezone=True), nullable=True)
-    envio_fecha_entrega = db.Column(db.DateTime(timezone=True), nullable=True)
+    envio_estado = db.Column(db.Text)
+    envio_tracking = db.Column(db.Text)
+    envio_fecha_despacho = db.Column(db.DateTime(timezone=True))
+    envio_fecha_entrega = db.Column(db.DateTime(timezone=True))
 
-    confirmado_por_usuario_id = db.Column(db.BigInteger, db.ForeignKey("usuario.usuario_id", ondelete="SET NULL"), nullable=True)
-    confirmado_en = db.Column(db.DateTime(timezone=True), nullable=True)
+    confirmado_por_usuario_id = db.Column(db.BigInteger, db.ForeignKey("usuario.usuario_id", ondelete="SET NULL"))
+    confirmado_en = db.Column(db.DateTime(timezone=True))
 
     __table_args__ = (
-        db.UniqueConstraint("empresa_id", "venta_id"),
-        db.ForeignKeyConstraint(["empresa_id", "cliente_id"], ["cliente_empresa.empresa_id", "cliente_empresa.cliente_id"], ondelete="RESTRICT"),
+        db.UniqueConstraint("empresa_id", "venta_id", name="uq_venta_empresa_venta_id"),
+        db.ForeignKeyConstraint(
+            ["empresa_id", "cliente_id"],
+            ["cliente_empresa.empresa_id", "cliente_empresa.cliente_id"],
+            ondelete="RESTRICT",
+        ),
+        db.CheckConstraint("total >= 0", name="ck_venta_total"),
+        db.CheckConstraint("descuento_total >= 0", name="ck_venta_descuento_total"),
+        db.CheckConstraint("envio_costo >= 0", name="ck_venta_envio_costo"),
+        db.CheckConstraint("pago_monto is null or pago_monto >= 0", name="ck_venta_pago_monto"),
+        db.Index("idx_venta_empresa", "empresa_id"),
+        db.Index("idx_venta_cliente", "empresa_id", "cliente_id"),
+    )
+
+    empresa = db.relationship("Empresa", back_populates="ventas")
+
+    detalles = db.relationship(
+        "VentaDetalle",
+        back_populates="venta",
+        cascade="all, delete-orphan",
+        primaryjoin="and_(Venta.empresa_id==VentaDetalle.empresa_id, Venta.venta_id==VentaDetalle.venta_id)",
+        foreign_keys="[VentaDetalle.empresa_id, VentaDetalle.venta_id]",
+        overlaps="detalles_venta",
     )
 
     def to_dict(self):
@@ -76,6 +98,7 @@ class Venta(db.Model):
             "confirmado_en": self.confirmado_en.isoformat() if self.confirmado_en else None,
         }
 
+
 class VentaDetalle(db.Model):
     __tablename__ = "venta_detalle"
 
@@ -90,9 +113,37 @@ class VentaDetalle(db.Model):
     subtotal = db.Column(db.Numeric(12, 2), nullable=False)
 
     __table_args__ = (
-        db.UniqueConstraint("empresa_id", "venta_detalle_id"),
-        db.ForeignKeyConstraint(["empresa_id", "venta_id"], ["venta.empresa_id", "venta.venta_id"], ondelete="CASCADE"),
-        db.ForeignKeyConstraint(["empresa_id", "producto_id"], ["producto.empresa_id", "producto.producto_id"]),
+        db.UniqueConstraint("empresa_id", "venta_detalle_id", name="uq_venta_detalle_empresa_venta_detalle_id"),
+        db.ForeignKeyConstraint(
+            ["empresa_id", "venta_id"],
+            ["venta.empresa_id", "venta.venta_id"],
+            ondelete="CASCADE",
+        ),
+        db.ForeignKeyConstraint(
+            ["empresa_id", "producto_id"],
+            ["producto.empresa_id", "producto.producto_id"],
+        ),
+        db.CheckConstraint("cantidad > 0", name="ck_venta_detalle_cantidad"),
+        db.CheckConstraint("precio_unit >= 0", name="ck_venta_detalle_precio_unit"),
+        db.CheckConstraint("descuento >= 0", name="ck_venta_detalle_descuento"),
+        db.CheckConstraint("subtotal >= 0", name="ck_venta_detalle_subtotal"),
+        db.Index("idx_venta_detalle_venta", "empresa_id", "venta_id"),
+    )
+
+    venta = db.relationship(
+        "Venta",
+        back_populates="detalles",
+        primaryjoin="and_(VentaDetalle.empresa_id==Venta.empresa_id, VentaDetalle.venta_id==Venta.venta_id)",
+        foreign_keys="[VentaDetalle.empresa_id, VentaDetalle.venta_id]",
+        overlaps="detalles_venta",
+    )
+
+    producto = db.relationship(
+        "Producto",
+        back_populates="detalles_venta",
+        primaryjoin="and_(VentaDetalle.empresa_id==Producto.empresa_id, VentaDetalle.producto_id==Producto.producto_id)",
+        foreign_keys="[VentaDetalle.empresa_id, VentaDetalle.producto_id]",
+        overlaps="detalles,venta",
     )
 
     def to_dict(self):

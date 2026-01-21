@@ -1,5 +1,7 @@
 from app.extensions import db
-from app.database.models.catalogo import Producto, Categoria, ProductoImagen
+from app.database.models.categoria import Categoria
+from app.database.models.producto import Producto
+from app.database.models.producto_imagen import ProductoImagen
 
 def list_products(empresa_id: int, q=None, categoria_id=None, include_inactivos=False):
     query = db.session.query(Producto).filter(Producto.empresa_id == int(empresa_id))
