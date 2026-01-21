@@ -42,11 +42,11 @@ def platform_create_client(payload: dict):
         return None, "conflict"
 
 def platform_update_client(cliente_id: int, payload: dict):
-    c = get_client(int(cliente_id))
-    if not c:
-        return None, "not_found"
     try:
         with db.session.begin():
+            c = get_client(int(cliente_id))
+            if not c:
+                return None, "not_found"
             update_client(c, payload)
         return platform_get_client(int(cliente_id)), None
     except IntegrityError:
@@ -54,24 +54,24 @@ def platform_update_client(cliente_id: int, payload: dict):
         return None, "conflict"
 
 def platform_delete_client(cliente_id: int):
-    c = get_client(int(cliente_id))
-    if not c:
-        return False, "not_found"
     with db.session.begin():
+        c = get_client(int(cliente_id))
+        if not c:
+            return False, "not_found"
         soft_delete_client(c)
-    return True, None
+        return True, None
 
 def platform_link_client(empresa_id: int, cliente_id: int):
-    c = get_client(int(cliente_id))
-    if not c:
-        return None, "not_found"
     with db.session.begin():
+        c = get_client(int(cliente_id))
+        if not c:
+            return None, "not_found"
         link_client_to_tenant(int(empresa_id), int(cliente_id))
     return platform_get_client(int(cliente_id)), None
 
 def platform_unlink_client(empresa_id: int, cliente_id: int):
-    row = unlink_client_from_tenant(int(empresa_id), int(cliente_id))
-    if not row:
-        return None, "not_found"
-    db.session.commit()
+    with db.session.begin():
+        row = unlink_client_from_tenant(int(empresa_id), int(cliente_id))
+        if not row:
+            return None, "not_found"
     return {"ok": True}, None

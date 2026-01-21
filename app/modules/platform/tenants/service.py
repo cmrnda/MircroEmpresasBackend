@@ -32,17 +32,17 @@ def platform_create_tenant(payload: dict):
     return {"empresa": e.to_dict(), "admin_usuario": u.to_dict()}, None
 
 def platform_update_tenant(empresa_id: int, payload: dict):
-    e = get_empresa(int(empresa_id))
-    if not e:
-        return None
     with db.session.begin():
+        e = get_empresa(int(empresa_id))
+        if not e:
+            return None
         update_empresa(e, payload.get("nombre"), payload.get("nit"), payload.get("estado"))
-    return e.to_dict()
+        return e.to_dict()
 
 def platform_delete_tenant(empresa_id: int):
-    e = get_empresa(int(empresa_id))
-    if not e:
-        return False
     with db.session.begin():
+        e = get_empresa(int(empresa_id))
+        if not e:
+            return False
         soft_delete_empresa(e)
-    return True
+        return True
