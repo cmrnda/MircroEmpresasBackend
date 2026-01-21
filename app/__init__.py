@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, request, make_response
 from flask_cors import CORS
 
 from app.extensions import db, migrate, jwt
@@ -34,21 +34,21 @@ def create_app():
 
     CORS(
         app,
-        resources={r"/*": {"origins": "*"}},
-        supports_credentials=True,
+        resources={r"/*": {"origins": ["http://localhost:4200"]}},
+        supports_credentials=False,
         expose_headers=["Authorization", "X-Empresa-Id"],
-        allow_headers=[
-            "Authorization",
-            "Content-Type",
-            "X-Empresa-Id",
-        ],
+        allow_headers=["Authorization", "Content-Type", "X-Empresa-Id"],
         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     )
+
+    @app.before_request
+    def _cors_preflight():
+        if request.method == "OPTIONS":
+            return make_response("", 204)
 
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
 
     register_modules(app)
-
     return app
