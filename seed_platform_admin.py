@@ -1,6 +1,6 @@
 from app import create_app
 from app.extensions import db
-from app.db.models.usuario import Usuario, UsuarioAdminPlataforma
+from app.database.models.usuario import Usuario, UsuarioAdminPlataforma
 from werkzeug.security import generate_password_hash
 
 app = create_app()

@@ -1,28 +1,20 @@
 from app.extensions import db
-from app.db.models.usuario import Usuario
-from app.db.models.cliente import Cliente
+from app.database.models.usuario import Usuario
 from app.security.password import hash_password
 
-def change_my_password(claims, new_password):
+def change_my_password(claims: dict, new_password: str):
     t = claims.get("type")
+    if t != "user" and t != "platform":
+        return False, "forbidden"
 
-    if t in ["platform", "user"]:
-        usuario_id = claims.get("usuario_id")
-        u = Usuario.query.filter_by(usuario_id=usuario_id).first()
-        if not u:
-            return False, "not_found"
-        u.password_hash = hash_password(new_password)
-        db.session.commit()
-        return True, None
+    usuario_id = claims.get("usuario_id")
+    if not usuario_id:
+        return False, "forbidden"
 
-    if t == "client":
-        cliente_id = claims.get("cliente_id")
-        empresa_id = claims.get("empresa_id")
-        c = Cliente.query.filter_by(cliente_id=cliente_id, empresa_id=empresa_id).first()
-        if not c:
-            return False, "not_found"
-        c.password_hash = hash_password(new_password)
-        db.session.commit()
-        return True, None
+    u = db.session.query(Usuario).filter_by(usuario_id=int(usuario_id)).first()
+    if not u:
+        return False, "not_found"
 
-    return False, "unsupported_type"
+    u.password_hash = hash_password(new_password)
+    db.session.commit()
+    return True, None

@@ -14,19 +14,18 @@ from app.auth.repository import (
     get_roles_for_user,
     touch_usuario_login,
     clients_by_email,
-    get_cliente,
+    get_cliente_by_email,
+    get_cliente_for_tenant,
     touch_cliente_login,
 )
 
-from app.db.models.token_blocklist import TokenBlocklist
+from app.database.models.token_blocklist import TokenBlocklist
 from app.extensions import db
-
 
 def _pwd_ok(raw_password, hashed_password):
     if _verify_password:
         return bool(_verify_password(raw_password, hashed_password))
     return bool(check_password_hash(hashed_password, raw_password))
-
 
 def _to_int(value):
     if value is None or value == "":
@@ -35,7 +34,6 @@ def _to_int(value):
         return int(value), None
     except Exception:
         return None, "invalid_empresa_id"
-
 
 def login_platform(email, password):
     if not email or not password:
@@ -53,21 +51,11 @@ def login_platform(email, password):
 
     touch_usuario_login(u)
 
-    claims = {
-        "type": "platform",
-        "usuario_id": u.usuario_id,
-        "roles": ["PLATFORM_ADMIN"],
-    }
-
+    claims = {"type": "platform", "usuario_id": u.usuario_id, "roles": ["PLATFORM_ADMIN"]}
     access = create_access_token(identity=str(u.usuario_id), additional_claims=claims)
     refresh = create_refresh_token(identity=str(u.usuario_id), additional_claims=claims)
 
-    return {
-        "access_token": access,
-        "refresh_token": refresh,
-        "usuario": u.to_dict(),
-    }, None
-
+    return {"access_token": access, "refresh_token": refresh, "usuario": u.to_dict()}, None
 
 def login_tenant_user(email, password, empresa_id=None):
     if not email or not password:
@@ -104,13 +92,7 @@ def login_tenant_user(email, password, empresa_id=None):
     roles = get_roles_for_user(empresa_id_int, u.usuario_id) or []
     touch_usuario_login(u)
 
-    claims = {
-        "type": "user",
-        "usuario_id": u.usuario_id,
-        "empresa_id": int(empresa_id_int),
-        "roles": roles,
-    }
-
+    claims = {"type": "user", "usuario_id": u.usuario_id, "empresa_id": int(empresa_id_int), "roles": roles}
     access = create_access_token(identity=str(u.usuario_id), additional_claims=claims)
     refresh = create_refresh_token(identity=str(u.usuario_id), additional_claims=claims)
 
@@ -121,7 +103,6 @@ def login_tenant_user(email, password, empresa_id=None):
         "roles": roles,
         "empresa_id": int(empresa_id_int),
     }, None
-
 
 def login_client(email, password, empresa_id=None):
     if not email or not password:
@@ -139,21 +120,20 @@ def login_client(email, password, empresa_id=None):
             return {"tenants": matches}, "empresa_required"
         empresa_id_int = int(matches[0]["empresa_id"])
 
-    c = get_cliente(int(empresa_id_int), email)
+    c = get_cliente_by_email(email)
     if not c or not getattr(c, "activo", False):
         return None, "invalid_credentials"
 
     if not _pwd_ok(password, c.password_hash):
         return None, "invalid_credentials"
 
+    link = get_cliente_for_tenant(int(empresa_id_int), int(c.cliente_id))
+    if not link:
+        return None, "forbidden_empresa"
+
     touch_cliente_login(c)
 
-    claims = {
-        "type": "client",
-        "cliente_id": c.cliente_id,
-        "empresa_id": int(empresa_id_int),
-    }
-
+    claims = {"type": "client", "cliente_id": int(c.cliente_id), "empresa_id": int(empresa_id_int)}
     access = create_access_token(identity=str(c.cliente_id), additional_claims=claims)
     refresh = create_refresh_token(identity=str(c.cliente_id), additional_claims=claims)
 
@@ -163,7 +143,6 @@ def login_client(email, password, empresa_id=None):
         "cliente": c.to_dict(),
         "empresa_id": int(empresa_id_int),
     }, None
-
 
 def logout_current_token():
     claims = get_jwt()
