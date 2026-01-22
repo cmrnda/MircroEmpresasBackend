@@ -5,6 +5,7 @@ from app.database.models.venta import Venta, VentaDetalle
 from app.database.models.producto import Producto
 from app.database.models.cliente import ClienteEmpresa
 from app.database.models.usuario import UsuarioAdminEmpresa, UsuarioVendedor
+from app.modules.notifications.repository import create_for_user
 
 def cliente_in_tenant(empresa_id: int, cliente_id: int):
     return (
@@ -66,11 +67,6 @@ def set_order_total(v: Venta, total):
     return v
 
 def notify_tenant_new_order(empresa_id: int, venta_id: int):
-    try:
-        from app.modules.tenant.notifications.repository import create_for_user
-    except Exception:
-        return
-
     ids = set()
     rows_a = db.session.query(UsuarioAdminEmpresa.usuario_id).filter(UsuarioAdminEmpresa.empresa_id == int(empresa_id)).all()
     rows_v = db.session.query(UsuarioVendedor.usuario_id).filter(UsuarioVendedor.empresa_id == int(empresa_id)).all()
@@ -78,11 +74,13 @@ def notify_tenant_new_order(empresa_id: int, venta_id: int):
         ids.add(int(r[0]))
     for r in rows_v:
         ids.add(int(r[0]))
-
     titulo = "Nuevo pedido"
     cuerpo = f"Pedido {int(venta_id)} creado"
     for uid in ids:
         create_for_user(empresa_id, uid, "IN_APP", titulo, cuerpo)
+
+# def notify_client_created(empresa_id: int, cliente_id: int, venta_id: int):
+#    create_for_client(empresa_id, cliente_id, "IN_APP", "Pedido creado", f"Pedido {int(venta_id)} creado")
 
 def list_client_orders(empresa_id: int, cliente_id: int):
     rows = (

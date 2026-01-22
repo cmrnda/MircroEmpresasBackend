@@ -18,6 +18,8 @@ from app.modules.tenant.settings.routes import bp as tenant_settings_bp
 from app.modules.tenant.suppliers.routes import bp as tenant_suppliers_bp
 from app.modules.tenant.finance.routes import bp as tenant_finances_bp
 from app.modules.tenant.purchases.routes import bp as tenant_purchases_bp
+from app.modules.notifications.routes import bp as notifications_bp
+
 
 def register_modules(app):
     # auth
@@ -44,3 +46,6 @@ def register_modules(app):
     # shop
     app.register_blueprint(shop_catalog_bp)
     app.register_blueprint(shop_orders_bp)
+
+    #notificacion
+    app.register_blueprint(notifications_bp)
