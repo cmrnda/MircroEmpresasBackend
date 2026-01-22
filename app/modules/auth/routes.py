@@ -7,6 +7,7 @@ from app.modules.auth.service import (
     login_tenant_user,
     login_client,
     logout_current_token,
+    signup_client
 )
 
 bp = Blueprint("auth_api", __name__, url_prefix="/auth")
@@ -66,3 +67,18 @@ def logout():
     if not logout_current_token():
         return jsonify({"error": "logout_failed"}), 400
     return jsonify({"ok": True}), 200
+
+
+@bp.post("/client/signup")
+def client_signup():
+    payload = request.get_json(silent=True) or {}
+    data, err = signup_client(
+        email=payload.get("email"),
+        password=payload.get("password"),
+        empresa_id=payload.get("empresa_id"),
+        nombre_razon=payload.get("nombre_razon"),
+        telefono=payload.get("telefono"),
+    )
+    if err:
+        return jsonify({"data": None, "error": err}), 400
+    return jsonify({"data": data, "error": None}), 201

@@ -15,6 +15,10 @@ from app.modules.auth.repository import (
     clients_by_email,
     get_cliente_by_email,
     get_cliente_for_tenant,
+    empresa_activa_exists,
+    cliente_link_exists,
+    create_cliente,
+    create_cliente_link,
 )
 
 
@@ -121,6 +125,43 @@ def login_client(email, password, empresa_id=None):
     db.session.commit()
 
     claims = {"type": "client", "cliente_id": c.cliente_id, "empresa_id": int(empresa_id)}
+    return {
+        "access_token": create_access_token(identity=str(c.cliente_id), additional_claims=claims),
+        "refresh_token": create_refresh_token(identity=str(c.cliente_id), additional_claims=claims),
+        "cliente": c.to_dict(),
+        "empresa_id": int(empresa_id),
+    }, None
+
+
+def signup_client(email: str, password: str, empresa_id: int, nombre_razon: str = None, telefono: str = None):
+    if not email or not password or not empresa_id:
+        return None, "invalid_payload"
+
+    if not empresa_activa_exists(int(empresa_id)):
+        return None, "empresa_not_found"
+
+    c = get_cliente_by_email(email)
+
+    if c and not c.activo:
+        return None, "forbidden"
+
+    if c:
+        if cliente_link_exists(int(empresa_id), int(c.cliente_id)):
+            return None, "email_already_exists"
+    else:
+        c = create_cliente(
+            email=email,
+            password_hash=generate_password_hash(password),
+            nombre_razon=nombre_razon,
+            telefono=telefono,
+        )
+
+    create_cliente_link(int(empresa_id), int(c.cliente_id))
+
+    c.ultimo_login = datetime.now(timezone.utc)
+    db.session.commit()
+
+    claims = {"type": "client", "cliente_id": int(c.cliente_id), "empresa_id": int(empresa_id)}
     return {
         "access_token": create_access_token(identity=str(c.cliente_id), additional_claims=claims),
         "refresh_token": create_refresh_token(identity=str(c.cliente_id), additional_claims=claims),

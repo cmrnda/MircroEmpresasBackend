@@ -1,7 +1,7 @@
 from app.extensions import db
 from app.database.models.categoria import Categoria
 from app.database.models.producto import Producto
-from app.database.models.producto_imagen import ProductoImagen
+
 
 def list_categories(empresa_id: int):
     return (
@@ -12,14 +12,6 @@ def list_categories(empresa_id: int):
         .all()
     )
 
-def get_primary_image_url(empresa_id: int, producto_id: int):
-    row = (
-        db.session.query(ProductoImagen)
-        .filter(ProductoImagen.empresa_id == int(empresa_id))
-        .filter(ProductoImagen.producto_id == int(producto_id))
-        .first()
-    )
-    return row.url if row else None
 
 def list_products(empresa_id: int, q=None, categoria_id=None, page=1, page_size=20):
     query = (
@@ -32,6 +24,7 @@ def list_products(empresa_id: int, q=None, categoria_id=None, page=1, page_size=
     if q:
         qq = f"%{q}%"
         query = query.filter(Producto.codigo.ilike(qq) | Producto.descripcion.ilike(qq))
+
     total = query.count()
     items = (
         query.order_by(Producto.producto_id.asc())
@@ -40,6 +33,7 @@ def list_products(empresa_id: int, q=None, categoria_id=None, page=1, page_size=
         .all()
     )
     return items, total
+
 
 def get_product(empresa_id: int, producto_id: int):
     return (

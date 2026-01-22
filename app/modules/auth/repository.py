@@ -84,3 +84,52 @@ def get_cliente_for_tenant(empresa_id: int, cliente_id: int):
         .filter(ClienteEmpresa.activo.is_(True))
         .first()
     )
+
+
+def empresa_activa_exists(empresa_id: int) -> bool:
+    if not empresa_id:
+        return False
+    return (
+            db.session.query(Empresa.empresa_id)
+            .filter(Empresa.empresa_id == int(empresa_id))
+            .filter(Empresa.estado == "ACTIVA")
+            .first()
+            is not None
+    )
+
+
+def cliente_link_exists(empresa_id: int, cliente_id: int) -> bool:
+    if not empresa_id or not cliente_id:
+        return False
+    return (
+            db.session.query(ClienteEmpresa.cliente_id)
+            .filter(ClienteEmpresa.empresa_id == int(empresa_id))
+            .filter(ClienteEmpresa.cliente_id == int(cliente_id))
+            .filter(ClienteEmpresa.activo.is_(True))
+            .first()
+            is not None
+    )
+
+
+def create_cliente(email: str, password_hash: str, nombre_razon: str = None, telefono: str = None):
+    c = Cliente(
+        email=email,
+        password_hash=password_hash,
+        nombre_razon=nombre_razon,
+        telefono=telefono,
+        activo=True,
+    )
+    db.session.add(c)
+    db.session.flush()
+    return c
+
+
+def create_cliente_link(empresa_id: int, cliente_id: int):
+    link = ClienteEmpresa(
+        empresa_id=int(empresa_id),
+        cliente_id=int(cliente_id),
+        activo=True,
+    )
+    db.session.add(link)
+    db.session.flush()
+    return link

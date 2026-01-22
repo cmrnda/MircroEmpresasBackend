@@ -13,7 +13,6 @@ from app.database.models.usuario import (
 from app.database.models.cliente import Cliente, ClienteEmpresa
 from app.database.models.categoria import Categoria
 from app.database.models.producto import Producto
-from app.database.models.producto_imagen import ProductoImagen
 from app.database.models.venta import Venta, VentaDetalle
 from app.database.models.notificacion import Notificacion
 from app.database.models.token_blocklist import TokenBlocklist
@@ -38,7 +37,6 @@ __all__ = [
     "ClienteEmpresa",
     "Categoria",
     "Producto",
-    "ProductoImagen",
     "Proveedor",
     "Venta",
     "VentaDetalle",

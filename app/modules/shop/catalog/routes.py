@@ -4,9 +4,11 @@ from app.modules.shop.catalog.service import shop_list_categories, shop_list_pro
 
 bp = Blueprint("shop_catalog_api", __name__, url_prefix="/shop")
 
+
 @bp.get("/<int:empresa_id>/categories")
 def list_categories(empresa_id: int):
     return jsonify(shop_list_categories(empresa_id)), 200
+
 
 @bp.get("/<int:empresa_id>/products")
 def list_products(empresa_id: int):
@@ -16,6 +18,7 @@ def list_products(empresa_id: int):
     page, page_size = page_args(request.args)
     data = shop_list_products(empresa_id, q=q, categoria_id=categoria_id, page=page, page_size=page_size)
     return jsonify(data), 200
+
 
 @bp.get("/<int:empresa_id>/products/<int:producto_id>")
 def get_product(empresa_id: int, producto_id: int):

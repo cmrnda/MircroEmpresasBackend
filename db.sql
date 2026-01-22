@@ -2,7 +2,10 @@ drop table if exists notificacion cascade;
 drop table if exists venta_detalle cascade;
 drop table if exists venta cascade;
 
-drop table if exists producto_imagen cascade;
+drop table if exists compra_detalle cascade;
+drop table if exists compra cascade;
+drop table if exists proveedor cascade;
+
 drop table if exists producto cascade;
 drop table if exists categoria cascade;
 
@@ -174,6 +177,10 @@ create table producto
     stock_min    integer        not null default 0,
     activo       boolean        not null default true,
 
+    image_url       text,
+    image_mime_type text,
+    image_updated_at timestamptz,
+
     unique (empresa_id, codigo),
     unique (empresa_id, producto_id),
 
@@ -181,28 +188,12 @@ create table producto
 
     check (precio >= 0),
     check (stock >= 0),
-    check (stock_min >= 0)
-);
+    check (stock_min >= 0),
+    check (image_url is null or image_url ~* '^https?://')
+    );
 
 create index idx_producto_empresa on producto (empresa_id);
 create index idx_producto_categoria on producto (empresa_id, categoria_id);
-
-create table producto_imagen
-(
-    empresa_id  bigint      not null,
-    producto_id bigint      not null,
-
-    file_path   text        not null,
-    url         text        not null,
-    mime_type   text        not null,
-    file_size   bigint      not null default 0,
-    updated_at  timestamptz not null default now(),
-
-    primary key (empresa_id, producto_id),
-    foreign key (empresa_id, producto_id) references producto (empresa_id, producto_id) on delete cascade,
-
-    check (file_size >= 0)
-);
 
 create table venta
 (
@@ -313,6 +304,7 @@ create table token_blocklist
 );
 
 create index idx_token_blocklist_usuario on token_blocklist (usuario_id);
+
 create table proveedor
 (
     proveedor_id bigserial primary key,
@@ -336,14 +328,14 @@ create index idx_proveedor_nombre on proveedor (empresa_id, nombre);
 
 create table compra
 (
-    compra_id   bigserial primary key,
-    empresa_id  bigint not null references empresa (empresa_id) on delete cascade,
+    compra_id    bigserial primary key,
+    empresa_id   bigint not null references empresa (empresa_id) on delete cascade,
     proveedor_id bigint not null,
 
-    fecha_hora  timestamptz not null default now(),
-    total       numeric(12, 2) not null default 0,
-    estado      text not null default 'CREADA',
-    observacion text,
+    fecha_hora   timestamptz not null default now(),
+    total        numeric(12, 2) not null default 0,
+    estado       text not null default 'CREADA',
+    observacion  text,
 
     recibido_por_usuario_id bigint references usuario (usuario_id) on delete set null,
     recibido_en timestamptz,
@@ -362,8 +354,8 @@ create index idx_compra_estado on compra (empresa_id, estado);
 create table compra_detalle
 (
     compra_detalle_id bigserial primary key,
-    empresa_id bigint not null references empresa (empresa_id) on delete cascade,
-    compra_id  bigint not null,
+    empresa_id  bigint not null references empresa (empresa_id) on delete cascade,
+    compra_id   bigint not null,
     producto_id bigint not null,
 
     cantidad    numeric(12, 3) not null,
