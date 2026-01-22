@@ -7,7 +7,7 @@ from app.modules.shop.orders.repository import (
     add_detail,
     set_order_total,
     notify_tenant_new_order,
-#    notify_client_created,
+    # notify_client_created,
     list_client_orders,
     get_client_order,
     get_details,
@@ -33,21 +33,28 @@ def shop_create_order(empresa_id: int, cliente_id: int, payload: dict):
             return None, "invalid_payload"
         producto_ids.append(int(it.get("producto_id")))
 
-    with db.session.begin():
+    try:
         products = lock_products_for_update(empresa_id, producto_ids)
         by_id = {int(p.producto_id): p for p in products}
 
         for it in items:
             pid = int(it.get("producto_id"))
             if pid not in by_id:
+                db.session.rollback()
                 return None, "invalid_producto"
+
             p = by_id[pid]
             if not bool(p.activo):
+                db.session.rollback()
                 return None, "invalid_producto"
+
             qty = _dec(it.get("cantidad"))
             if qty <= 0:
+                db.session.rollback()
                 return None, "invalid_payload"
+
             if _dec(p.stock) < qty:
+                db.session.rollback()
                 return None, "stock_insuficiente"
 
         v = create_order(empresa_id, cliente_id, payload)
@@ -56,15 +63,21 @@ def shop_create_order(empresa_id: int, cliente_id: int, payload: dict):
         for it in items:
             pid = int(it.get("producto_id"))
             p = by_id[pid]
+
             qty = _dec(it.get("cantidad"))
             precio = _dec(it.get("precio_unit")) if it.get("precio_unit") is not None else _dec(p.precio)
             desc = _dec(it.get("descuento") or 0)
+
             if desc < 0:
+                db.session.rollback()
                 return None, "invalid_payload"
+
             subtotal = (qty * precio) - desc
             if subtotal < 0:
                 subtotal = Decimal("0")
+
             add_detail(empresa_id, v.venta_id, it, precio, subtotal)
+
             total += subtotal
             p.stock = _dec(p.stock) - qty
             db.session.add(p)
@@ -72,6 +85,7 @@ def shop_create_order(empresa_id: int, cliente_id: int, payload: dict):
         envio_costo = _dec(payload.get("envio_costo") or 0)
         descuento_total = _dec(payload.get("descuento_total") or 0)
         if envio_costo < 0 or descuento_total < 0:
+            db.session.rollback()
             return None, "invalid_payload"
 
         total = total + envio_costo - descuento_total
@@ -80,12 +94,18 @@ def shop_create_order(empresa_id: int, cliente_id: int, payload: dict):
 
         set_order_total(v, total)
         notify_tenant_new_order(empresa_id, v.venta_id)
-#notify_client_created(empresa_id, cliente_id, v.venta_id)
+        # notify_client_created(empresa_id, cliente_id, v.venta_id)
 
-    data = v.to_dict()
-    det = get_details(empresa_id, v.venta_id)
-    data["detalle"] = [d.to_dict() for d in det]
-    return data, None
+        db.session.commit()
+
+        data = v.to_dict()
+        det = get_details(empresa_id, v.venta_id)
+        data["detalle"] = [d.to_dict() for d in det]
+        return data, None
+
+    except Exception:
+        db.session.rollback()
+        return None, "order_failed"
 
 def shop_list_my_orders(empresa_id: int, cliente_id: int):
     rows = list_client_orders(empresa_id, cliente_id)
