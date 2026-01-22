@@ -1,5 +1,4 @@
 from sqlalchemy.exc import IntegrityError
-
 from app.extensions import db
 from app.modules.tenant.products.repository import (
     list_products,
@@ -10,12 +9,14 @@ from app.modules.tenant.products.repository import (
     soft_delete_product,
     restore_product,
     category_exists,
+    get_primary_image_url,
 )
+from app.modules.notifications.service import NotificationsService
 
 
 def _with_image(p):
     d = p.to_dict()
-    d["primary_image_url"] = d.get("image_url")
+    d["primary_image_url"] = get_primary_image_url(p.empresa_id, p.producto_id)
     d["cantidad_actual"] = d.get("stock")
     return d
 
@@ -40,12 +41,20 @@ def tenant_create_product(empresa_id: int, payload: dict):
         return None, "invalid_categoria"
 
     try:
-        p = create_product(empresa_id, payload)
-        db.session.commit()
+        with db.session.begin():
+            p = create_product(empresa_id, payload)
+
+            prev_stock = p.stock
+            if "stock" in payload and payload.get("stock") is not None:
+                if NotificationsService.should_fire_stock_zero(prev_stock, p.stock):
+                    NotificationsService.notify_stock_zero(
+                        empresa_id=int(empresa_id),
+                        producto_id=int(p.producto_id),
+                        codigo=getattr(p, "codigo", None),
+                        descripcion=getattr(p, "descripcion", None),
+                    )
+
         return _with_image(p), None
-    except ValueError:
-        db.session.rollback()
-        return None, "invalid_image_url"
     except IntegrityError:
         db.session.rollback()
         return None, "conflict"
@@ -61,12 +70,20 @@ def tenant_update_product(empresa_id: int, producto_id: int, payload: dict):
             return None, "invalid_categoria"
 
     try:
-        update_product(p, payload)
-        db.session.commit()
+        with db.session.begin():
+            prev_stock = p.stock
+            update_product(p, payload)
+
+            if "stock" in payload and payload.get("stock") is not None:
+                if NotificationsService.should_fire_stock_zero(prev_stock, p.stock):
+                    NotificationsService.notify_stock_zero(
+                        empresa_id=int(empresa_id),
+                        producto_id=int(p.producto_id),
+                        codigo=getattr(p, "codigo", None),
+                        descripcion=getattr(p, "descripcion", None),
+                    )
+
         return _with_image(p), None
-    except ValueError:
-        db.session.rollback()
-        return None, "invalid_image_url"
     except IntegrityError:
         db.session.rollback()
         return None, "conflict"
@@ -76,8 +93,8 @@ def tenant_delete_product(empresa_id: int, producto_id: int):
     p = get_product_any(empresa_id, producto_id)
     if not p:
         return False
-    soft_delete_product(p)
-    db.session.commit()
+    with db.session.begin():
+        soft_delete_product(p)
     return True
 
 
@@ -85,6 +102,6 @@ def tenant_restore_product(empresa_id: int, producto_id: int):
     p = get_product_any(empresa_id, producto_id)
     if not p:
         return None
-    restore_product(p)
-    db.session.commit()
+    with db.session.begin():
+        restore_product(p)
     return _with_image(p)
