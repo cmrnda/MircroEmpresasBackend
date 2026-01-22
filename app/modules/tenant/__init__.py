@@ -6,6 +6,9 @@ from app.modules.tenant.clients.routes import bp as tenant_clients_bp
 from app.modules.tenant.users.routes import bp as tenant_users_bp
 from app.modules.tenant.orders.routes import bp as tenant_orders_bp
 #from app.modules.tenant.notifications.routes import bp as tenant_notifications_bp
+from app.modules.tenant.suppliers.routes import bp as tenant_suppliers_bp
+from app.modules.tenant.finance.routes import bp as tenant_finances_bp
+from app.modules.tenant.purchases.routes import bp as tenant_purchases_bp
 
 def register_tenant_modules(app):
     app.register_blueprint(tenant_settings_bp)
@@ -16,3 +19,6 @@ def register_tenant_modules(app):
     app.register_blueprint(tenant_users_bp)
     app.register_blueprint(tenant_orders_bp)
 #    app.register_blueprint(tenant_notifications_bp)
+    app.register_blueprint(tenant_suppliers_bp)
+    app.register_blueprint(tenant_finances_bp)
+    app.register_blueprint(tenant_purchases_bp)

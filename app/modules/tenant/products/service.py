@@ -31,11 +31,13 @@ def tenant_create_product(empresa_id: int, payload: dict):
     for k in required:
         if payload.get(k) is None or str(payload.get(k)).strip() == "":
             return None, "invalid_payload"
+
     if not category_exists(empresa_id, int(payload.get("categoria_id"))):
         return None, "invalid_categoria"
+
     try:
-        with db.session.begin():
-            p = create_product(empresa_id, payload)
+        p = create_product(empresa_id, payload)
+        db.session.commit()
         return _with_image(p), None
     except IntegrityError:
         db.session.rollback()
@@ -45,12 +47,14 @@ def tenant_update_product(empresa_id: int, producto_id: int, payload: dict):
     p = get_product(empresa_id, producto_id, include_inactivos=False)
     if not p:
         return None, "not_found"
+
     if "categoria_id" in payload and payload.get("categoria_id") is not None:
         if not category_exists(empresa_id, int(payload.get("categoria_id"))):
             return None, "invalid_categoria"
+
     try:
-        with db.session.begin():
-            update_product(p, payload)
+        update_product(p, payload)
+        db.session.commit()
         return _with_image(p), None
     except IntegrityError:
         db.session.rollback()
@@ -60,14 +64,16 @@ def tenant_delete_product(empresa_id: int, producto_id: int):
     p = get_product_any(empresa_id, producto_id)
     if not p:
         return False
-    with db.session.begin():
-        soft_delete_product(p)
+
+    soft_delete_product(p)
+    db.session.commit()
     return True
 
 def tenant_restore_product(empresa_id: int, producto_id: int):
     p = get_product_any(empresa_id, producto_id)
     if not p:
         return None
-    with db.session.begin():
-        restore_product(p)
+
+    restore_product(p)
+    db.session.commit()
     return _with_image(p)

@@ -26,8 +26,9 @@ def tenant_ship_order(empresa_id: int, venta_id: int, payload: dict, usuario_id:
         return None, "not_found"
     if v.estado not in ("CREADA", "PAGADA", "CONFIRMADA"):
         return None, "invalid_state"
-    with db.session.begin():
-        set_shipping(v, payload, usuario_id)
+
+    set_shipping(v, payload, usuario_id)
+    db.session.commit()
     return tenant_get_order(empresa_id, venta_id), None
 
 def tenant_complete_order(empresa_id: int, venta_id: int, usuario_id: int):
@@ -36,6 +37,7 @@ def tenant_complete_order(empresa_id: int, venta_id: int, usuario_id: int):
         return None, "not_found"
     if v.estado not in ("DESPACHADA",):
         return None, "invalid_state"
-    with db.session.begin():
-        set_delivered(v, usuario_id)
+
+    set_delivered(v, usuario_id)
+    db.session.commit()
     return tenant_get_order(empresa_id, venta_id), None

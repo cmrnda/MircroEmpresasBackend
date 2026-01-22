@@ -22,9 +22,10 @@ def tenant_create_category(empresa_id: int, payload: dict):
     nombre = (payload.get("nombre") or "").strip()
     if not nombre:
         return None, "invalid_payload"
+
     try:
-        with db.session.begin():
-            c = create_category(empresa_id, nombre)
+        c = create_category(empresa_id, nombre)
+        db.session.commit()
         return c.to_dict(), None
     except IntegrityError:
         db.session.rollback()
@@ -34,9 +35,10 @@ def tenant_update_category(empresa_id: int, categoria_id: int, payload: dict):
     c = get_category(empresa_id, categoria_id, include_inactivos=False)
     if not c:
         return None, "not_found"
+
     try:
-        with db.session.begin():
-            update_category(c, payload)
+        update_category(c, payload)
+        db.session.commit()
         return c.to_dict(), None
     except IntegrityError:
         db.session.rollback()
@@ -46,14 +48,16 @@ def tenant_delete_category(empresa_id: int, categoria_id: int):
     c = get_category_any(empresa_id, categoria_id)
     if not c:
         return False
-    with db.session.begin():
-        soft_delete_category(c)
+
+    soft_delete_category(c)
+    db.session.commit()
     return True
 
 def tenant_restore_category(empresa_id: int, categoria_id: int):
     c = get_category_any(empresa_id, categoria_id)
     if not c:
         return None
-    with db.session.begin():
-        restore_category(c)
+
+    restore_category(c)
+    db.session.commit()
     return c.to_dict()

@@ -17,8 +17,13 @@ from app.database.models.producto_imagen import ProductoImagen
 from app.database.models.venta import Venta, VentaDetalle
 from app.database.models.notificacion import Notificacion
 from app.database.models.token_blocklist import TokenBlocklist
+from app.database.models.proveedor import Proveedor
+from app.database.models.compra import Compra
+from app.database.models.compra_detalle import CompraDetalle
 
 __all__ = [
+    "Compra",
+    "CompraDetalle",
     "Empresa",
     "Plan",
     "EmpresaSettings",
@@ -34,6 +39,7 @@ __all__ = [
     "Categoria",
     "Producto",
     "ProductoImagen",
+    "Proveedor",
     "Venta",
     "VentaDetalle",
     "Notificacion",

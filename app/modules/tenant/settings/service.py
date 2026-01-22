@@ -7,7 +7,7 @@ def tenant_get_settings(empresa_id: int):
     return s.to_dict()
 
 def tenant_update_settings(empresa_id: int, payload: dict):
-    with db.session.begin():
-        s = ensure_settings(int(empresa_id))
-        update_settings(s, payload)
+    s = ensure_settings(int(empresa_id))
+    update_settings(s, payload)
+    db.session.commit()
     return s.to_dict()
