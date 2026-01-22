@@ -5,7 +5,7 @@ from app.database.models.venta import Venta, VentaDetalle
 from app.database.models.producto import Producto
 from app.database.models.cliente import ClienteEmpresa
 from app.database.models.usuario import UsuarioAdminEmpresa, UsuarioVendedor
-#from app.modules.tenant.notifications.repository import create_for_user, create_for_client
+from app.modules.notifications.repository import create_for_user
 
 def cliente_in_tenant(empresa_id: int, cliente_id: int):
     return (

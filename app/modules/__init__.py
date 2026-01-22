@@ -15,6 +15,7 @@ from app.modules.tenant.orders.routes import bp as tenant_orders_bp
 from app.modules.tenant.product_image.routes import bp as tenant_product_image_bp
 from app.modules.tenant.products.routes import bp as tenant_products_bp
 from app.modules.tenant.users.routes import bp as tenant_users_bp
+from app.modules.notifications.routes import bp as notifications_bp
 
 
 def register_modules(app):
@@ -39,3 +40,6 @@ def register_modules(app):
     # shop
     app.register_blueprint(shop_catalog_bp)
     app.register_blueprint(shop_orders_bp)
+
+    #notificacion
+    app.register_blueprint(notifications_bp)

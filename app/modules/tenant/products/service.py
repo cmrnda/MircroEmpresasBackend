@@ -11,6 +11,7 @@ from app.modules.tenant.products.repository import (
     category_exists,
     get_primary_image_url,
 )
+from app.modules.notifications.service import NotificationsService
 
 def _with_image(p):
     d = p.to_dict()
@@ -35,7 +36,17 @@ def tenant_create_product(empresa_id: int, payload: dict):
         return None, "invalid_categoria"
     try:
         with db.session.begin():
-            p = create_product(empresa_id, payload)
+            prev_stock = p.stock
+            update_product(p, payload)
+
+            if "stock" in payload and payload.get("stock") is not None:
+                if NotificationsService.should_fire_stock_zero(prev_stock, p.stock):
+                 NotificationsService.notify_stock_zero(
+                      empresa_id=int(empresa_id),
+                      producto_id=int(p.producto_id),
+                      codigo=getattr(p, "codigo", None),
+                      descripcion=getattr(p, "descripcion", None),
+                 )
         return _with_image(p), None
     except IntegrityError:
         db.session.rollback()
