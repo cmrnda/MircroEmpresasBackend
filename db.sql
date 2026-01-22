@@ -313,3 +313,71 @@ create table token_blocklist
 );
 
 create index idx_token_blocklist_usuario on token_blocklist (usuario_id);
+create table proveedor
+(
+    proveedor_id bigserial primary key,
+    empresa_id   bigint not null references empresa (empresa_id) on delete cascade,
+
+    nombre       text not null,
+    nit          text,
+    telefono     text,
+    direccion    text,
+    email        text,
+
+    activo       boolean not null default true,
+    creado_en    timestamptz not null default now(),
+
+    unique (empresa_id, proveedor_id),
+    unique (empresa_id, nombre)
+);
+
+create index idx_proveedor_empresa on proveedor (empresa_id);
+create index idx_proveedor_nombre on proveedor (empresa_id, nombre);
+
+create table compra
+(
+    compra_id   bigserial primary key,
+    empresa_id  bigint not null references empresa (empresa_id) on delete cascade,
+    proveedor_id bigint not null,
+
+    fecha_hora  timestamptz not null default now(),
+    total       numeric(12, 2) not null default 0,
+    estado      text not null default 'CREADA',
+    observacion text,
+
+    recibido_por_usuario_id bigint references usuario (usuario_id) on delete set null,
+    recibido_en timestamptz,
+
+    unique (empresa_id, compra_id),
+    foreign key (empresa_id, proveedor_id) references proveedor (empresa_id, proveedor_id),
+
+    check (total >= 0),
+    check (estado in ('CREADA','RECIBIDA','ANULADA'))
+);
+
+create index idx_compra_empresa on compra (empresa_id);
+create index idx_compra_proveedor on compra (empresa_id, proveedor_id);
+create index idx_compra_estado on compra (empresa_id, estado);
+
+create table compra_detalle
+(
+    compra_detalle_id bigserial primary key,
+    empresa_id bigint not null references empresa (empresa_id) on delete cascade,
+    compra_id  bigint not null,
+    producto_id bigint not null,
+
+    cantidad    numeric(12, 3) not null,
+    costo_unit  numeric(12, 2) not null default 0,
+    subtotal    numeric(12, 2) not null default 0,
+
+    unique (empresa_id, compra_detalle_id),
+
+    foreign key (empresa_id, compra_id) references compra (empresa_id, compra_id) on delete cascade,
+    foreign key (empresa_id, producto_id) references producto (empresa_id, producto_id),
+
+    check (cantidad > 0),
+    check (costo_unit >= 0),
+    check (subtotal >= 0)
+);
+
+create index idx_compra_detalle_compra on compra_detalle (empresa_id, compra_id);
