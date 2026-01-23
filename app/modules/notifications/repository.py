@@ -6,7 +6,9 @@ from app.database.models.usuario import (
     UsuarioEmpresa,
     UsuarioAdminEmpresa,
     UsuarioVendedor,
+    UsuarioEncargadoInventario,
 )
+
 
 def create_for_user(empresa_id: int, usuario_id: int, canal: str, titulo: str, cuerpo: str) -> Notificacion:
     n = Notificacion(
@@ -22,13 +24,79 @@ def create_for_user(empresa_id: int, usuario_id: int, canal: str, titulo: str, c
     return n
 
 
-def list_notifications(
-    empresa_id: int,
-    usuario_id: int,
-    include_all: bool,
-    unread_only: bool,
-    limit: int,
-    offset: int,
+def create_for_client(empresa_id: int, cliente_id: int, canal: str, titulo: str, cuerpo: str) -> Notificacion:
+    n = Notificacion(
+        empresa_id=int(empresa_id),
+        actor_type="client",
+        usuario_id=None,
+        cliente_id=int(cliente_id),
+        canal=str(canal),
+        titulo=str(titulo),
+        cuerpo=str(cuerpo),
+    )
+    db.session.add(n)
+    return n
+
+
+def tenant_recipient_user_ids_by_roles(empresa_id: int, roles: set[str]) -> set[int]:
+    roles = set(roles or set())
+    ids: set[int] = set()
+
+    if "TENANT_ADMIN" in roles:
+        rows = (
+            db.session.query(UsuarioAdminEmpresa.usuario_id)
+            .join(
+                UsuarioEmpresa,
+                (UsuarioEmpresa.empresa_id == UsuarioAdminEmpresa.empresa_id)
+                & (UsuarioEmpresa.usuario_id == UsuarioAdminEmpresa.usuario_id),
+                )
+            .filter(UsuarioAdminEmpresa.empresa_id == int(empresa_id))
+            .filter(UsuarioEmpresa.activo.is_(True))
+            .all()
+        )
+        for r in rows:
+            ids.add(int(r[0]))
+
+    if "SELLER" in roles:
+        rows = (
+            db.session.query(UsuarioVendedor.usuario_id)
+            .join(
+                UsuarioEmpresa,
+                (UsuarioEmpresa.empresa_id == UsuarioVendedor.empresa_id)
+                & (UsuarioEmpresa.usuario_id == UsuarioVendedor.usuario_id),
+                )
+            .filter(UsuarioVendedor.empresa_id == int(empresa_id))
+            .filter(UsuarioEmpresa.activo.is_(True))
+            .all()
+        )
+        for r in rows:
+            ids.add(int(r[0]))
+
+    if "INVENTORY" in roles:
+        rows = (
+            db.session.query(UsuarioEncargadoInventario.usuario_id)
+            .join(
+                UsuarioEmpresa,
+                (UsuarioEmpresa.empresa_id == UsuarioEncargadoInventario.empresa_id)
+                & (UsuarioEmpresa.usuario_id == UsuarioEncargadoInventario.usuario_id),
+                )
+            .filter(UsuarioEncargadoInventario.empresa_id == int(empresa_id))
+            .filter(UsuarioEmpresa.activo.is_(True))
+            .all()
+        )
+        for r in rows:
+            ids.add(int(r[0]))
+
+    return ids
+
+
+def list_notifications_user(
+        empresa_id: int,
+        usuario_id: int,
+        include_all: bool,
+        unread_only: bool,
+        limit: int,
+        offset: int,
 ):
     q = (
         db.session.query(Notificacion)
@@ -52,7 +120,7 @@ def list_notifications(
     return q.all()
 
 
-def unread_count(empresa_id: int, usuario_id: int, include_all: bool) -> int:
+def unread_count_user(empresa_id: int, usuario_id: int, include_all: bool) -> int:
     q = (
         db.session.query(db.func.count(Notificacion.notificacion_id))
         .filter(Notificacion.empresa_id == int(empresa_id))
@@ -64,11 +132,62 @@ def unread_count(empresa_id: int, usuario_id: int, include_all: bool) -> int:
     return int(q.scalar() or 0)
 
 
-def get_for_update(empresa_id: int, notificacion_id: int) -> Notificacion | None:
+def get_for_update_user(empresa_id: int, notificacion_id: int) -> Notificacion | None:
     return (
         db.session.query(Notificacion)
         .filter(Notificacion.empresa_id == int(empresa_id))
         .filter(Notificacion.notificacion_id == int(notificacion_id))
+        .filter(Notificacion.actor_type == "user")
+        .with_for_update()
+        .first()
+    )
+
+
+def list_notifications_client(
+        empresa_id: int,
+        cliente_id: int,
+        unread_only: bool,
+        limit: int,
+        offset: int,
+):
+    q = (
+        db.session.query(Notificacion)
+        .filter(Notificacion.empresa_id == int(empresa_id))
+        .filter(Notificacion.actor_type == "client")
+        .filter(Notificacion.cliente_id == int(cliente_id))
+    )
+
+    if unread_only:
+        q = q.filter(Notificacion.leido_en.is_(None))
+
+    q = q.order_by(Notificacion.creado_en.desc())
+
+    if limit is not None:
+        q = q.limit(int(limit))
+    if offset is not None:
+        q = q.offset(int(offset))
+
+    return q.all()
+
+
+def unread_count_client(empresa_id: int, cliente_id: int) -> int:
+    q = (
+        db.session.query(db.func.count(Notificacion.notificacion_id))
+        .filter(Notificacion.empresa_id == int(empresa_id))
+        .filter(Notificacion.actor_type == "client")
+        .filter(Notificacion.cliente_id == int(cliente_id))
+        .filter(Notificacion.leido_en.is_(None))
+    )
+    return int(q.scalar() or 0)
+
+
+def get_for_update_client(empresa_id: int, notificacion_id: int, cliente_id: int) -> Notificacion | None:
+    return (
+        db.session.query(Notificacion)
+        .filter(Notificacion.empresa_id == int(empresa_id))
+        .filter(Notificacion.notificacion_id == int(notificacion_id))
+        .filter(Notificacion.actor_type == "client")
+        .filter(Notificacion.cliente_id == int(cliente_id))
         .with_for_update()
         .first()
     )
@@ -79,43 +198,3 @@ def mark_as_read(n: Notificacion) -> Notificacion:
         n.leido_en = datetime.now(timezone.utc)
         db.session.add(n)
     return n
-
-
-def stock_alert_recipient_user_ids(empresa_id: int) -> set[int]:
-    """
-    Admin tenant + vendedores activos del tenant (empresa).
-    """
-    ids: set[int] = set()
-
-    # Admins activos
-    rows_a = (
-        db.session.query(UsuarioAdminEmpresa.usuario_id)
-        .join(
-            UsuarioEmpresa,
-            (UsuarioEmpresa.empresa_id == UsuarioAdminEmpresa.empresa_id)
-            & (UsuarioEmpresa.usuario_id == UsuarioAdminEmpresa.usuario_id),
-        )
-        .filter(UsuarioAdminEmpresa.empresa_id == int(empresa_id))
-        .filter(UsuarioEmpresa.activo.is_(True))
-        .all()
-    )
-
-    # Vendedores activos
-    rows_v = (
-        db.session.query(UsuarioVendedor.usuario_id)
-        .join(
-            UsuarioEmpresa,
-            (UsuarioEmpresa.empresa_id == UsuarioVendedor.empresa_id)
-            & (UsuarioEmpresa.usuario_id == UsuarioVendedor.usuario_id),
-        )
-        .filter(UsuarioVendedor.empresa_id == int(empresa_id))
-        .filter(UsuarioEmpresa.activo.is_(True))
-        .all()
-    )
-
-    for r in rows_a:
-        ids.add(int(r[0]))
-    for r in rows_v:
-        ids.add(int(r[0]))
-
-    return ids

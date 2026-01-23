@@ -8,6 +8,7 @@ from app.modules.tenant.orders.routes import bp as tenant_orders_bp
 from app.modules.tenant.suppliers.routes import bp as tenant_suppliers_bp
 from app.modules.tenant.finance.routes import bp as tenant_finances_bp
 from app.modules.tenant.purchases.routes import bp as tenant_purchases_bp
+from app.modules.tenant.pos.routes import bp as tenant_pos_bp
 
 def register_tenant_modules(app):
     app.register_blueprint(tenant_settings_bp)
@@ -20,3 +21,4 @@ def register_tenant_modules(app):
     app.register_blueprint(tenant_suppliers_bp)
     app.register_blueprint(tenant_finances_bp)
     app.register_blueprint(tenant_purchases_bp)
+    app.register_blueprint(tenant_pos_bp)
