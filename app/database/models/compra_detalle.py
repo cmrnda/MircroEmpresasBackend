@@ -12,6 +12,9 @@ class CompraDetalle(db.Model):
     costo_unit = db.Column(db.Numeric(12, 2), nullable=False, server_default="0")
     subtotal = db.Column(db.Numeric(12, 2), nullable=False, server_default="0")
 
+    lote = db.Column(db.Text)
+    fecha_vencimiento = db.Column(db.Date)
+
     __table_args__ = (
         db.UniqueConstraint("empresa_id", "compra_detalle_id", name="uq_compra_detalle_empresa_id"),
         db.ForeignKeyConstraint(["empresa_id", "compra_id"], ["compra.empresa_id", "compra.compra_id"], ondelete="CASCADE"),
@@ -30,4 +33,6 @@ class CompraDetalle(db.Model):
             "cantidad": float(self.cantidad) if self.cantidad is not None else 0,
             "costo_unit": float(self.costo_unit) if self.costo_unit is not None else 0,
             "subtotal": float(self.subtotal) if self.subtotal is not None else 0,
+            "lote": self.lote,
+            "fecha_vencimiento": self.fecha_vencimiento.isoformat() if self.fecha_vencimiento else None,
         }

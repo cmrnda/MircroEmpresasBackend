@@ -13,14 +13,12 @@ from app.modules.tenant.products.service import (
 
 bp = Blueprint("tenant_products_api", __name__, url_prefix="/tenant/products")
 
-
 def _error_code(err: str) -> int:
     if err == "conflict":
         return 409
     if err == "not_found":
         return 404
     return 400
-
 
 @bp.get("")
 @jwt_required()
@@ -34,7 +32,6 @@ def list_products():
     items = tenant_list_products(empresa_id, q=q, categoria_id=categoria_id, include_inactivos=include_inactivos)
     return jsonify({"items": items}), 200
 
-
 @bp.get("/<int:producto_id>")
 @jwt_required()
 @require_tenant_admin
@@ -45,7 +42,6 @@ def get_product(producto_id: int):
     if not data:
         return jsonify({"error": "not_found"}), 404
     return jsonify(data), 200
-
 
 @bp.post("")
 @jwt_required()
@@ -58,7 +54,6 @@ def create_product():
         return jsonify({"error": err}), _error_code(err)
     return jsonify(data), 201
 
-
 @bp.put("/<int:producto_id>")
 @jwt_required()
 @require_tenant_admin
@@ -70,7 +65,6 @@ def update_product(producto_id: int):
         return jsonify({"error": err}), _error_code(err)
     return jsonify(data), 200
 
-
 @bp.delete("/<int:producto_id>")
 @jwt_required()
 @require_tenant_admin
@@ -80,7 +74,6 @@ def delete_product(producto_id: int):
     if not ok:
         return jsonify({"error": "not_found"}), 404
     return jsonify({"ok": True}), 200
-
 
 @bp.post("/<int:producto_id>/restore")
 @jwt_required()
