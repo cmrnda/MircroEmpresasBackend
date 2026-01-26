@@ -11,13 +11,22 @@ def list_suppliers(empresa_id: int, q=None, include_inactivos=False):
     return query.order_by(Proveedor.proveedor_id.asc()).all()
 
 def get_supplier(empresa_id: int, proveedor_id: int, include_inactivos=False):
-    q = db.session.query(Proveedor).filter(Proveedor.empresa_id == int(empresa_id)).filter(Proveedor.proveedor_id == int(proveedor_id))
+    q = (
+        db.session.query(Proveedor)
+        .filter(Proveedor.empresa_id == int(empresa_id))
+        .filter(Proveedor.proveedor_id == int(proveedor_id))
+    )
     if not include_inactivos:
         q = q.filter(Proveedor.activo.is_(True))
     return q.first()
 
 def get_supplier_any(empresa_id: int, proveedor_id: int):
-    return db.session.query(Proveedor).filter(Proveedor.empresa_id == int(empresa_id)).filter(Proveedor.proveedor_id == int(proveedor_id)).first()
+    return (
+        db.session.query(Proveedor)
+        .filter(Proveedor.empresa_id == int(empresa_id))
+        .filter(Proveedor.proveedor_id == int(proveedor_id))
+        .first()
+    )
 
 def create_supplier(empresa_id: int, payload: dict):
     s = Proveedor(
