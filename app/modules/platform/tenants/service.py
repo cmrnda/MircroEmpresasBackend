@@ -7,13 +7,17 @@ from app.modules.platform.tenants.repository import (
     soft_delete_empresa,
     create_tenant_admin_user,
 )
+from app.modules.notifications.service import NotificationsService
+
 
 def platform_list_tenants(q=None, include_inactivos=False):
     return [e.to_dict() for e in list_empresas(q=q, include_inactivos=include_inactivos)]
 
+
 def platform_get_tenant(empresa_id: int):
     e = get_empresa(int(empresa_id))
     return e.to_dict() if e else None
+
 
 def platform_create_tenant(payload: dict):
     nombre = (payload.get("nombre") or "").strip()
@@ -29,7 +33,15 @@ def platform_create_tenant(payload: dict):
         e = create_empresa(nombre, nit)
         u = create_tenant_admin_user(e.empresa_id, admin_email, admin_password)
 
+        # NOTIF 2: avisar a PLATFORM_ADMINs que se creó un usuario (el admin inicial del tenant)
+        NotificationsService.notify_platform_user_created(
+            empresa_id=int(e.empresa_id),
+            created_usuario_id=int(u.usuario_id),
+            created_email=u.email,
+        )
+
     return {"empresa": e.to_dict(), "admin_usuario": u.to_dict()}, None
+
 
 def platform_update_tenant(empresa_id: int, payload: dict):
     with db.session.begin():
@@ -38,6 +50,7 @@ def platform_update_tenant(empresa_id: int, payload: dict):
             return None
         update_empresa(e, payload.get("nombre"), payload.get("nit"), payload.get("estado"))
         return e.to_dict()
+
 
 def platform_delete_tenant(empresa_id: int):
     with db.session.begin():

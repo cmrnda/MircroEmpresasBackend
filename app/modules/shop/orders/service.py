@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 from app.extensions import db
 from app.modules.shop.orders.repository import (
     cliente_in_tenant,
@@ -6,7 +7,6 @@ from app.modules.shop.orders.repository import (
     create_order,
     add_detail,
     set_order_total,
-    notify_tenant_new_order,
     list_client_orders,
     get_client_order,
     get_details,
@@ -33,7 +33,6 @@ def shop_create_order(empresa_id: int, cliente_id: int, payload: dict):
         producto_ids.append(int(it.get("producto_id")))
 
     with db.session.begin():
-
         if not cliente_in_tenant(empresa_id, cliente_id):
             return None, "forbidden"
 
@@ -85,6 +84,17 @@ def shop_create_order(empresa_id: int, cliente_id: int, payload: dict):
                     codigo=getattr(p, "codigo", None),
                     descripcion=getattr(p, "descripcion", None),
                 )
+            else:
+                stock_min = getattr(p, "stock_min", 0)
+                if NotificationsService.should_fire_stock_min(prev_stock, stock_min, new_stock):
+                    NotificationsService.notify_stock_min(
+                        empresa_id=int(empresa_id),
+                        producto_id=int(p.producto_id),
+                        codigo=getattr(p, "codigo", None),
+                        descripcion=getattr(p, "descripcion", None),
+                        stock=new_stock,
+                        stock_min=stock_min,
+                    )
 
         envio_costo = _dec(payload.get("envio_costo") or 0)
         descuento_total = _dec(payload.get("descuento_total") or 0)
@@ -96,7 +106,13 @@ def shop_create_order(empresa_id: int, cliente_id: int, payload: dict):
             total = Decimal("0")
 
         set_order_total(v, total)
-        notify_tenant_new_order(empresa_id, v.venta_id)
+
+        NotificationsService.notify_order_created(
+            empresa_id=int(empresa_id),
+            venta_id=int(v.venta_id),
+            cliente_id=int(cliente_id),
+            total=total,
+        )
 
     data = v.to_dict()
     det = get_details(empresa_id, v.venta_id)

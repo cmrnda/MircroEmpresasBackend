@@ -11,6 +11,7 @@ from app.modules.tenant.users.repository import (
     set_roles,
     set_password,
 )
+from app.modules.notifications.service import NotificationsService
 
 def tenant_list_users(empresa_id: int, q=None, include_inactivos=False):
     rows = list_users(empresa_id, q=q, include_inactivos=include_inactivos)
@@ -54,6 +55,10 @@ def tenant_create_user(empresa_id: int, payload: dict):
         u = create_user(email, password)
         add_membership(empresa_id, u.usuario_id)
         set_roles(empresa_id, u.usuario_id, roles)
+        titulo = "Usuario creado"
+        cuerpo = f"empresa_id={int(empresa_id)} usuario_id={int(u.usuario_id)} email={email} roles={roles}"
+        NotificationsService.notify_tenant_roles(int(empresa_id), {"TENANT_ADMIN"}, titulo, cuerpo)
+
         db.session.commit()
         return tenant_get_user(empresa_id, u.usuario_id, include_inactivos=True), None
     except IntegrityError:

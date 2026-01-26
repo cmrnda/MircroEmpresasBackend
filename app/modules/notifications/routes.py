@@ -25,10 +25,9 @@ def list_notifications():
     limit = int(request.args.get("limit", 20))
     offset = int(request.args.get("offset", 0))
     unread_only = request.args.get("unread_only", "0").lower() in ("1", "true", "yes")
-
     include_all = _is_tenant_admin()
 
-    data = NotificationsService.list_notifications(
+    data = NotificationsService.list_notifications_user(
         int(empresa_id),
         int(usuario_id),
         include_all=include_all,
@@ -49,7 +48,7 @@ def unread_count():
         return jsonify({"error": "forbidden"}), 403
 
     include_all = _is_tenant_admin()
-    n = NotificationsService.unread_count(int(empresa_id), int(usuario_id), include_all=include_all)
+    n = NotificationsService.unread_count_user(int(empresa_id), int(usuario_id), include_all=include_all)
     return jsonify({"data": {"unread": n}}), 200
 
 
@@ -65,7 +64,7 @@ def mark_read(notificacion_id: int):
     include_all = _is_tenant_admin()
 
     with db.session.begin():
-        data, err = NotificationsService.mark_as_read(
+        data, err = NotificationsService.mark_as_read_user(
             int(empresa_id),
             int(usuario_id),
             include_all=include_all,
