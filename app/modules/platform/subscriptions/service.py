@@ -1,7 +1,7 @@
 from app.extensions import db
 from app.database.models.empresa_settings import EmpresaSettings
 from app.database.models.empresa import Empresa
-
+from app.modules.notifications.service import NotificationsService
 def _get_settings(empresa_id: int):
     return db.session.query(EmpresaSettings).filter(EmpresaSettings.empresa_id == int(empresa_id)).first()
 
@@ -99,6 +99,24 @@ def platform_update_subscription(empresa_id: int, payload: dict):
             return None, "not_found"
 
         s = _ensure_settings(int(empresa_id))
+
+        # snapshot previo (anti-spam / solo si hay cambios)
+        prev_estado = getattr(s, "suscripcion_estado", None)
+        prev_fin = getattr(s, "suscripcion_fin", None)
+
         _set_subscription_fields(s, payload)
+
+        # snapshot nuevo
+        new_estado = getattr(s, "suscripcion_estado", None)
+        new_fin = getattr(s, "suscripcion_fin", None)
+
+        changed = (str(prev_estado or "").strip() != str(new_estado or "").strip()) or (prev_fin != new_fin)
+
+        if changed:
+            NotificationsService.maybe_notify_subscription_expiring(
+                empresa_id=int(empresa_id),
+                suscripcion_estado=new_estado,
+                suscripcion_fin=new_fin,
+            )
 
     return platform_get_subscription(int(empresa_id)), None
