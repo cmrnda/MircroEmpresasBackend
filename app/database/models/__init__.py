@@ -19,6 +19,7 @@ from app.database.models.token_blocklist import TokenBlocklist
 from app.database.models.proveedor import Proveedor
 from app.database.models.compra import Compra
 from app.database.models.compra_detalle import CompraDetalle
+from .proveedor_producto import ProveedorProducto
 
 __all__ = [
     "Compra",
