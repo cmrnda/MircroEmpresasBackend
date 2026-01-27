@@ -8,7 +8,10 @@ class EmpresaSettings(db.Model):
 
     moneda = db.Column(db.Text, nullable=False, server_default="BOB")
     tasa_impuesto = db.Column(db.Numeric(6, 3), nullable=False, server_default="0")
+
     logo_url = db.Column(db.Text)
+    image_url = db.Column(db.Text)
+    descripcion = db.Column(db.Text)
 
     plan_id = db.Column(db.BigInteger, db.ForeignKey("plan.plan_id"))
     suscripcion_estado = db.Column(db.Text, nullable=False, server_default="INACTIVA")
@@ -23,7 +26,7 @@ class EmpresaSettings(db.Model):
     ultimo_pago_estado = db.Column(db.Text)
     ultimo_pagado_en = db.Column(db.DateTime(timezone=True))
 
-    actualizado_en = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+    actualizado_en = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now(), onupdate=db.func.now())
 
     empresa = db.relationship("Empresa", back_populates="settings")
     plan = db.relationship("Plan", back_populates="empresas_settings")
@@ -34,6 +37,8 @@ class EmpresaSettings(db.Model):
             "moneda": self.moneda,
             "tasa_impuesto": float(self.tasa_impuesto) if self.tasa_impuesto is not None else 0.0,
             "logo_url": self.logo_url,
+            "image_url": self.image_url,
+            "descripcion": self.descripcion,
             "plan_id": int(self.plan_id) if self.plan_id is not None else None,
             "suscripcion_estado": self.suscripcion_estado,
             "suscripcion_inicio": self.suscripcion_inicio.isoformat() if self.suscripcion_inicio else None,
