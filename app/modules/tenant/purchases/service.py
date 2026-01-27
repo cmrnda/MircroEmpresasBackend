@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date
 from sqlalchemy.exc import IntegrityError
 from app.extensions import db
@@ -17,7 +19,9 @@ from app.modules.tenant.purchases.repository import (
     apply_stock_increase,
     mark_received,
     mark_canceled,
+    upsert_proveedor_producto,
 )
+
 
 def _parse_date(s) -> date | None:
     if s is None:
@@ -27,18 +31,19 @@ def _parse_date(s) -> date | None:
         return None
     return date.fromisoformat(val)
 
+
 def tenant_list_purchases(empresa_id: int, proveedor_id=None, estado=None):
-    rows = list_purchases(int(empresa_id), proveedor_id=proveedor_id, estado=estado)
-    return [r.to_dict() for r in rows]
+    return list_purchases(int(empresa_id), proveedor_id=proveedor_id, estado=estado)
+
 
 def tenant_get_purchase(empresa_id: int, compra_id: int):
     c = get_purchase(int(empresa_id), int(compra_id))
     if not c:
         return None
     det = list_purchase_details(int(empresa_id), int(compra_id))
-    d = c.to_dict()
-    d["detalle"] = [x.to_dict() for x in det]
-    return d
+    c["detalle"] = det
+    return c
+
 
 def tenant_create_purchase(empresa_id: int, payload: dict):
     empresa_id = int(empresa_id)
@@ -90,7 +95,17 @@ def tenant_create_purchase(empresa_id: int, payload: dict):
                     raise ValueError("invalid_producto")
 
                 fv = _parse_date(fecha_vencimiento)
-                add_purchase_detail(empresa_id, compra_id, pid, cantidad, costo_unit, lote=lote, fecha_vencimiento=fv)
+                add_purchase_detail(
+                    empresa_id,
+                    compra_id,
+                    pid,
+                    cantidad,
+                    costo_unit,
+                    lote=lote,
+                    fecha_vencimiento=fv,
+                )
+
+                upsert_proveedor_producto(empresa_id, proveedor_id, pid)
 
             recompute_total(empresa_id, compra_id)
 
@@ -108,6 +123,7 @@ def tenant_create_purchase(empresa_id: int, payload: dict):
         if str(e) == "invalid_proveedor":
             return None, "invalid_proveedor"
         return None, "invalid_payload"
+
 
 def tenant_add_purchase_item(empresa_id: int, compra_id: int, payload: dict):
     empresa_id = int(empresa_id)
@@ -139,7 +155,18 @@ def tenant_add_purchase_item(empresa_id: int, compra_id: int, payload: dict):
                 raise ValueError("invalid_producto")
 
             fv = _parse_date(fecha_vencimiento)
-            add_purchase_detail(empresa_id, compra_id, pid, cantidad, costo_unit, lote=lote, fecha_vencimiento=fv)
+            add_purchase_detail(
+                empresa_id,
+                compra_id,
+                pid,
+                cantidad,
+                costo_unit,
+                lote=lote,
+                fecha_vencimiento=fv,
+            )
+
+            upsert_proveedor_producto(empresa_id, int(c.proveedor_id), pid)
+
             recompute_total(empresa_id, compra_id)
 
         return tenant_get_purchase(empresa_id, compra_id), None
@@ -156,6 +183,7 @@ def tenant_add_purchase_item(empresa_id: int, compra_id: int, payload: dict):
     except IntegrityError:
         db.session.rollback()
         return None, "conflict"
+
 
 def tenant_update_purchase_item(empresa_id: int, compra_id: int, compra_detalle_id: int, payload: dict):
     empresa_id = int(empresa_id)
@@ -197,6 +225,7 @@ def tenant_update_purchase_item(empresa_id: int, compra_id: int, compra_detalle_
         db.session.rollback()
         return None, "conflict"
 
+
 def tenant_delete_purchase_item(empresa_id: int, compra_id: int, compra_detalle_id: int):
     empresa_id = int(empresa_id)
     compra_id = int(compra_id)
@@ -227,6 +256,7 @@ def tenant_delete_purchase_item(empresa_id: int, compra_id: int, compra_detalle_
             return None, "not_found_item"
         return None, "invalid_state"
 
+
 def tenant_receive_purchase(empresa_id: int, compra_id: int, usuario_id: int):
     empresa_id = int(empresa_id)
     compra_id = int(compra_id)
@@ -250,6 +280,7 @@ def tenant_receive_purchase(empresa_id: int, compra_id: int, usuario_id: int):
         if str(e) == "not_found":
             return None, "not_found"
         return None, "invalid_state"
+
 
 def tenant_cancel_purchase(empresa_id: int, compra_id: int):
     empresa_id = int(empresa_id)
