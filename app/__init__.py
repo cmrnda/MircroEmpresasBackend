@@ -20,7 +20,6 @@ def create_app():
 
     database_uri = (
         f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
-        "?sslmode=require"
     )
 
     app.config.from_mapping(
@@ -32,10 +31,10 @@ def create_app():
         JWT_HEADER_TYPE="Bearer",
     )
 
+    # CORS abierto para desarrollo (PC + celular)
     CORS(
         app,
-        resources={r"/*": {"origins": ["http://localhost:4200"]}},
-        supports_credentials=False,
+        resources={r"/*": {"origins": "*"}},
         expose_headers=["Authorization", "X-Empresa-Id"],
         allow_headers=["Authorization", "Content-Type", "X-Empresa-Id"],
         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

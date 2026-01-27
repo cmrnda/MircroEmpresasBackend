@@ -9,7 +9,8 @@ from app.extensions import db
 from app.database.models.proveedor import Proveedor
 from app.database.models.producto import Producto
 from app.database.models.proveedor_producto import ProveedorProducto
-from app.database.models.compra import Compra, CompraDetalle
+from app.database.models.compra import Compra
+from app.database.models.compra_detalle import CompraDetalle
 
 
 def _dt_iso(v):
