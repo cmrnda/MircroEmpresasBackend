@@ -4,6 +4,8 @@ from urllib.parse import urlparse
 from app.extensions import db
 from app.database.models.categoria import Categoria
 from app.database.models.producto import Producto
+from app.database.models.proveedor import Proveedor
+from app.database.models.proveedor_producto import ProveedorProducto
 
 def _is_valid_http_url(s: str) -> bool:
     try:
@@ -118,3 +120,54 @@ def category_exists(empresa_id: int, categoria_id: int):
         .filter(Categoria.activo.is_(True))
         .first()
     ) is not None
+def list_product_suppliers(empresa_id: int, producto_id: int, include_inactivos: bool = False):
+    q = (
+        db.session.query(Proveedor)
+        .join(
+            ProveedorProducto,
+            (ProveedorProducto.empresa_id == Proveedor.empresa_id)
+            & (ProveedorProducto.proveedor_id == Proveedor.proveedor_id),
+        )
+        .filter(ProveedorProducto.empresa_id == int(empresa_id))
+        .filter(ProveedorProducto.producto_id == int(producto_id))
+    )
+
+    if not include_inactivos:
+        q = q.filter(Proveedor.activo.is_(True))
+
+    return q.order_by(Proveedor.proveedor_id.asc()).all()
+
+
+def get_product_supplier_ids(empresa_id: int, producto_id: int) -> list[int]:
+    rows = (
+        db.session.query(ProveedorProducto.proveedor_id)
+        .filter(ProveedorProducto.empresa_id == int(empresa_id))
+        .filter(ProveedorProducto.producto_id == int(producto_id))
+        .all()
+    )
+    return [int(r[0]) for r in rows]
+
+
+def replace_product_suppliers(empresa_id: int, producto_id: int, proveedor_ids: list[int]):
+    empresa_id = int(empresa_id)
+    producto_id = int(producto_id)
+
+    # borra vínculos actuales
+    (
+        db.session.query(ProveedorProducto)
+        .filter(ProveedorProducto.empresa_id == empresa_id)
+        .filter(ProveedorProducto.producto_id == producto_id)
+        .delete(synchronize_session=False)
+    )
+
+    # inserta nuevos
+    for proveedor_id in proveedor_ids:
+        db.session.add(
+            ProveedorProducto(
+                empresa_id=empresa_id,
+                producto_id=producto_id,
+                proveedor_id=int(proveedor_id),
+            )
+        )
+
+    # ❌ NO commit aquí

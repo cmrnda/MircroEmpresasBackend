@@ -9,6 +9,8 @@ from app.modules.tenant.products.service import (
     tenant_update_product,
     tenant_delete_product,
     tenant_restore_product,
+    tenant_list_product_suppliers,
+    tenant_set_product_suppliers,
 )
 
 bp = Blueprint("tenant_products_api", __name__, url_prefix="/tenant/products")
@@ -83,4 +85,28 @@ def restore_product(producto_id: int):
     data = tenant_restore_product(empresa_id, producto_id)
     if not data:
         return jsonify({"error": "not_found"}), 404
+    return jsonify(data), 200
+@bp.get("/<int:producto_id>/suppliers")
+@jwt_required()
+@require_tenant_admin
+def list_product_suppliers_route(producto_id: int):
+    empresa_id = int(current_empresa_id())
+    include_inactivos = (request.args.get("include_inactivos") or "").strip().lower() in ("1", "true", "yes")
+
+    data, err = tenant_list_product_suppliers(empresa_id, producto_id, include_inactivos=include_inactivos)
+    if err:
+        return jsonify({"error": err, **(data or {})}), _error_code(err)
+    return jsonify(data), 200
+
+
+@bp.put("/<int:producto_id>/suppliers")
+@jwt_required()
+@require_tenant_admin
+def set_product_suppliers_route(producto_id: int):
+    empresa_id = int(current_empresa_id())
+    payload = request.get_json(silent=True) or {}
+
+    data, err = tenant_set_product_suppliers(empresa_id, producto_id, payload)
+    if err:
+        return jsonify({"error": err, **(data or {})}), _error_code(err)
     return jsonify(data), 200
