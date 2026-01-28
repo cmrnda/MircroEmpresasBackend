@@ -3,7 +3,7 @@ from app.extensions import db
 from app.database.models.cliente import Cliente, ClienteEmpresa
 from app.database.models.venta import Venta, VentaDetalle
 from app.database.models.producto import Producto
-
+from sqlalchemy import text
 
 def get_client_in_tenant_by_id(empresa_id: int, cliente_id: int):
     return (
@@ -126,3 +126,58 @@ def get_sale_details(empresa_id: int, venta_id: int):
         .order_by(VentaDetalle.venta_detalle_id.asc())
         .all()
     )
+def get_sale_receipt_data(empresa_id: int, venta_id: int):
+    header_sql = text("""
+    SELECT
+        e.empresa_id,
+        e.nombre as empresa_nombre,
+        e.nit as empresa_nit,
+        NULL as empresa_direccion,
+        NULL as empresa_telefono,
+
+        v.venta_id,
+        v.fecha_hora,
+        v.total,
+        v.descuento_total,
+        v.estado,
+        v.pago_metodo,
+        v.pago_monto,
+        v.pago_referencia_qr,
+        v.pago_estado,
+        v.pagado_en,
+
+        c.cliente_id,
+        c.nombre_razon as cliente_nombre,
+        c.nit_ci as cliente_nit_ci,
+        c.telefono as cliente_telefono,
+        c.email as cliente_email
+
+    FROM venta v
+    JOIN empresa e ON e.empresa_id = v.empresa_id
+    LEFT JOIN cliente_empresa ce ON ce.empresa_id = v.empresa_id AND ce.cliente_id = v.cliente_id
+    LEFT JOIN cliente c ON c.cliente_id = ce.cliente_id
+    WHERE v.empresa_id = :empresa_id AND v.venta_id = :venta_id
+    LIMIT 1
+""")
+
+    row = db.session.execute(header_sql, {"empresa_id": empresa_id, "venta_id": venta_id}).mappings().first()
+    if not row:
+        return None
+
+    items_sql = text("""
+        SELECT
+            vd.producto_id,
+            p.codigo as producto_codigo,
+            p.descripcion as producto_descripcion,
+            vd.cantidad,
+            vd.precio_unit,
+            vd.descuento,
+            vd.subtotal
+        FROM venta_detalle vd
+        JOIN producto p ON p.empresa_id = vd.empresa_id AND p.producto_id = vd.producto_id
+        WHERE vd.empresa_id = :empresa_id AND vd.venta_id = :venta_id
+        ORDER BY vd.venta_detalle_id ASC
+    """)
+
+    items = db.session.execute(items_sql, {"empresa_id": empresa_id, "venta_id": venta_id}).mappings().all()
+    return {"header": dict(row), "items": [dict(x) for x in items]}
