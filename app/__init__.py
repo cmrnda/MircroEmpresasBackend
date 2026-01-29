@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, make_response
+from flask import Flask
 from flask_cors import CORS
 
 from app.extensions import db, migrate, jwt
@@ -18,9 +18,7 @@ def create_app():
     if not all([db_host, db_name, db_user, db_pass]):
         raise RuntimeError("Missing DB env vars: DB_HOST/DB_NAME/DB_USER/DB_PASS")
 
-    database_uri = (
-        f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
-    )
+    database_uri = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 
     app.config.from_mapping(
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
@@ -31,19 +29,21 @@ def create_app():
         JWT_HEADER_TYPE="Bearer",
     )
 
-    # CORS abierto para desarrollo (PC + celular)
+    allowed_origins = [
+        "https://localhost",
+        "http://localhost",
+        "capacitor://localhost",
+        "ionic://localhost",
+    ]
+
     CORS(
         app,
-        resources={r"/*": {"origins": "*"}},
-        expose_headers=["Authorization", "X-Empresa-Id"],
+        resources={r"/*": {"origins": allowed_origins}},
         allow_headers=["Authorization", "Content-Type", "X-Empresa-Id"],
+        expose_headers=["Authorization", "X-Empresa-Id"],
         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        max_age=86400,
     )
-
-    @app.before_request
-    def _cors_preflight():
-        if request.method == "OPTIONS":
-            return make_response("", 204)
 
     db.init_app(app)
     migrate.init_app(app, db)
